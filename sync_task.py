@@ -1,11 +1,19 @@
 import logging
+from typing import Dict
 
-from database import DatabaseConnection
+from database import DatabaseConnection, format_query
 from frappe import FrappeAPI
+import urllib.parse
 
 
 class SyncTask:
-    def __init__(self, task_config, db_conn: DatabaseConnection, frappe_api: FrappeAPI):
+    def __init__(
+        self,
+        task_config: Dict[str, str | bool | list | Dict[str, str]],
+        db_conn: DatabaseConnection,
+        frappe_api: FrappeAPI,
+        dry_run: bool,
+    ):
         self.endpoint = task_config.get("endpoint")
         self.mapping = task_config.get("mapping")
         self.db_type = task_config.get("db_type")
@@ -13,12 +21,14 @@ class SyncTask:
         self.direction = task_config.get("direction", "db_to_frappe")
         self.key_fields = task_config.get("key_fields")
         self.process_all = task_config.get("process_all", False)
+        self.create_new = task_config.get("create_new", False)
         self.frappe_api = frappe_api
+        self.dry_run = dry_run
 
         self._check_config(task_config)
         self.db_conn = db_conn.get_connection(self.db_type, self.db_name)
 
-    def _check_config(self, task_config):
+    def _check_config(self, task_config: Dict[str, str | bool | list | Dict[str, str]]):
         # Konfigurationsprüfung basierend auf der Synchronisationsrichtung
         if self.direction == "db_to_frappe":
             required_fields = ["endpoint", "query", "mapping", "db_type", "db_name"]
@@ -66,6 +76,10 @@ class SyncTask:
 
     def sync_db_to_frappe(self):
         cursor = self.db_conn.cursor()
+        logging.debug(
+            f"""Anfrage an {self.db_type} - {self.db_name}
+                {self.query}"""
+        )
         cursor.execute(self.query)
         columns = [column[0] for column in cursor.description]
 
@@ -81,15 +95,12 @@ class SyncTask:
             filters = []
             for key_field in self.key_fields:
                 if key_field in data:
-                    filters.append([key_field, "=", data[key_field]])
+                    filters.append(f'["{key_field}", "=", "{data[key_field]}"]')
                 else:
                     logging.warning(f"Schlüsselfeld {key_field} nicht in Daten gefunden.")
 
             if filters:
-                # URL-encode die Filter
-                import urllib.parse
-
-                filters_str = urllib.parse.quote(str(filters))
+                filters_str = urllib.parse.quote(f"[{','.join(filters)}]")
                 endpoint = f"{self.endpoint}?filters={filters_str}"
 
                 # Suche nach existierendem Dokument
@@ -117,8 +128,9 @@ class SyncTask:
                 method = "POST"
                 endpoint = self.endpoint
 
-            # Daten an Frappe senden
-            self.frappe_api.send_data(method, endpoint, data)
+            if self.create_new or method == "PUT":
+                # Daten an Frappe senden
+                self.frappe_api.send_data(method, endpoint, data)
 
         cursor.close()
 
@@ -168,24 +180,36 @@ class SyncTask:
                 set_clause = ", ".join([f"{col} = ?" for col in db_data.keys()])
                 update_sql = f"UPDATE {table_name} SET {set_clause} WHERE {where_clause}"
                 params = list(db_data.values()) + list(key_values.values())
-                try:
-                    cursor.execute(update_sql, params)
-                    self.db_conn.commit()
-                    logging.info(f"Datensatz mit Schlüsseln {key_values} erfolgreich aktualisiert.")
-                except Exception as e:
-                    logging.error(f"Fehler beim Aktualisieren des Datensatzes: {e}")
-                    self.db_conn.rollback()
-            else:
+                if self.dry_run:
+                    logging.info(
+                        f"""DRY_RUN: {self.db_type} - {self.db_name}
+                            {format_query(update_sql, params)}"""
+                    )
+                else:
+                    try:
+                        cursor.execute(update_sql, params)
+                        self.db_conn.commit()
+                        logging.info(f"Datensatz mit Schlüsseln {key_values} erfolgreich aktualisiert.")
+                    except Exception as e:
+                        logging.error(f"Fehler beim Aktualisieren des Datensatzes: {e}")
+                        self.db_conn.rollback()
+            elif self.create_new:
                 # Insert
                 placeholders = ", ".join(["?"] * len(db_data))
                 columns = ", ".join(db_data.keys())
                 insert_sql = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
-                try:
-                    cursor.execute(insert_sql, list(db_data.values()))
-                    self.db_conn.commit()
-                    logging.info(f"Datensatz mit Schlüsseln {key_values} erfolgreich eingefügt.")
-                except Exception as e:
-                    logging.error(f"Fehler beim Einfügen des Datensatzes: {e}")
-                    self.db_conn.rollback()
+                if self.dry_run:
+                    logging.info(
+                        f"""DRY_RUN: {self.db_type} - {self.db_name}
+                            {format_query(update_sql, params)}"""
+                    )
+                else:
+                    try:
+                        cursor.execute(insert_sql, list(db_data.values()))
+                        self.db_conn.commit()
+                        logging.info(f"Datensatz mit Schlüsseln {key_values} erfolgreich eingefügt.")
+                    except Exception as e:
+                        logging.error(f"Fehler beim Einfügen des Datensatzes: {e}")
+                        self.db_conn.rollback()
 
         cursor.close()

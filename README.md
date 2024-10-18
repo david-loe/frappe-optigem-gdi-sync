@@ -33,6 +33,7 @@ cp config.yaml.example config.yaml
   - `db_type`
   - `db_name`
   - Optional: `key_fields` (für Updates)
+  - Optional: `create_new` (wenn `true` werden neue Dokumente bei Frappe erstellt, für die kein match anhand der `key_fields` gefunden wurde)
   - Optional: `process_all` (`true` wenn alle gefundenen Dokumente verarbeitet werden sollen, andernfalls nur das erste)
 - `frappe_to_db`:
   - `endpoint`
@@ -41,9 +42,18 @@ cp config.yaml.example config.yaml
   - `db_type`
   - `db_name`
   - Optional: `key_fields` (für Updates)
+  - Optional: `create_new` (wenn `true` werden neue Dokumente in der Datenbank eingefügt, für die kein match anhand der `key_fields` gefunden wurde)
 
 ## Run
 
 ```
 python sync.py
+```
+
+```
+options:
+  -h, --help           show this help message and exit
+  --loglevel LOGLEVEL  Setzt das Loglevel (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  --config CONFIG      Pfad zur Konfigurationsdatei
+  --dry-run            Führt den Sync im Dry-Run-Modus aus (keine Änderungen werden vorgenommen)
 ```
