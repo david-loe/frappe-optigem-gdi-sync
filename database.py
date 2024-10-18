@@ -1,60 +1,72 @@
+from typing import Dict
 import fdb
 import pyodbc
 import logging
 import sys
 
+
 class DatabaseConnection:
     def __init__(self, config):
-        self.firebird_conn = None
-        self.mssql_conn = None
+        self.firebird_conns: Dict[str, fdb.Connection] = {}
+        self.mssql_conns: Dict[str, pyodbc.Connection] = {}
         self._setup_connections(config)
 
     def _setup_connections(self, config):
-        self._connect_firebird(config.get('firebird'))
-        self._connect_mssql(config.get('mssql'))
+        self._connect_firebird(config.get("firebird", {}))
+        self._connect_mssql(config.get("mssql", {}))
 
     def _connect_firebird(self, config):
-        if config:
+        for db_name, db_config in config.items():
             try:
-                self.firebird_conn = fdb.connect(
-                    host=config['host'],
-                    database=config['database'],
-                    user=config['user'],
-                    password=config['password'],
-                    charset='UTF8'
+                conn = fdb.connect(
+                    host=db_config["host"],
+                    database=db_config["database"],
+                    user=db_config["user"],
+                    password=db_config["password"],
+                    charset="UTF8",
                 )
-                logging.info("Verbindung zur Firebird-Datenbank hergestellt.")
+                self.firebird_conns[db_name] = conn
+                logging.info(f"Verbindung zur Firebird-Datenbank '{db_name}' hergestellt.")
             except Exception as e:
-                logging.error(f"Fehler bei der Verbindung zur Firebird-Datenbank: {e}")
+                logging.error(f"Fehler bei der Verbindung zur Firebird-Datenbank '{db_name}': {e}")
                 sys.exit(1)
 
     def _connect_mssql(self, config):
-        if config:
+        for db_name, db_config in config.items():
             try:
                 mssql_conn_str = (
                     f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-                    f"SERVER={config['server']};"
-                    f"DATABASE={config['database']};"
-                    f"UID={config['user']};"
-                    f"PWD={config['password']}"
+                    f"SERVER={db_config['server']};"
+                    f"DATABASE={db_config['database']};"
+                    f"UID={db_config['user']};"
+                    f"PWD={db_config['password']}"
                 )
-                self.mssql_conn = pyodbc.connect(mssql_conn_str)
-                logging.info("Verbindung zur MSSQL-Datenbank hergestellt.")
+                conn = pyodbc.connect(mssql_conn_str)
+                self.mssql_conns[db_name] = conn
+                logging.info(f"Verbindung zur MSSQL-Datenbank '{db_name}' hergestellt.")
             except Exception as e:
-                logging.error(f"Fehler bei der Verbindung zur MSSQL-Datenbank: {e}")
+                logging.error(f"Fehler bei der Verbindung zur MSSQL-Datenbank '{db_name}': {e}")
                 sys.exit(1)
 
-    def get_connection(self, db_type):
-        if db_type == 'firebird':
-            return self.firebird_conn
-        elif db_type == 'mssql':
-            return self.mssql_conn
+    def get_connection(self, db_type, db_name):
+        if db_type == "firebird":
+            conn = self.firebird_conns.get(db_name)
+            if not conn:
+                logging.error(f"Firebird-Datenbank '{db_name}' nicht gefunden.")
+            return conn
+        elif db_type == "mssql":
+            conn = self.mssql_conns.get(db_name)
+            if not conn:
+                logging.error(f"MSSQL-Datenbank '{db_name}' nicht gefunden.")
+            return conn
         else:
             logging.error(f"Unbekannter Datenbanktyp: {db_type}")
             return None
 
     def close_connections(self):
-        if self.firebird_conn:
-            self.firebird_conn.close()
-        if self.mssql_conn:
-            self.mssql_conn.close()
+        for db_name, conn in self.firebird_conns.items():
+            conn.close()
+            logging.info(f"Verbindung zur Firebird-Datenbank '{db_name}' geschlossen.")
+        for db_name, conn in self.mssql_conns.items():
+            conn.close()
+            logging.info(f"Verbindung zur MSSQL-Datenbank '{db_name}' geschlossen.")

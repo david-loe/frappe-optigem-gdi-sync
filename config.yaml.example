@@ -1,14 +1,26 @@
 firebird:
-  host: "localhost"
-  database: "/path/to/database.fdb"
-  user: "sysdba"
-  password: "masterkey"
+  db1:
+    host: "localhost"
+    database: "/path/to/database1.fdb"
+    user: "sysdba"
+    password: "masterkey"
+  db2:
+    host: "localhost"
+    database: "/path/to/database2.fdb"
+    user: "sysdba"
+    password: "masterkey"
 
 mssql:
-  server: "localhost"
-  database: "mydatabase"
-  user: "sa"
-  password: "mypassword"
+  db1:
+    server: "localhost"
+    database: "mydatabase1"
+    user: "sa"
+    password: "mypassword"
+  db2:
+    server: "localhost"
+    database: "mydatabase2"
+    user: "sa"
+    password: "mypassword"
 
 frappe_auth:
   api_key: "your_api_key"
@@ -21,6 +33,7 @@ tasks:
       "frappe_field_1": "id"
       "frappe_field_2": "name"
     db_type: "firebird"
+    db_name: "db1"
     direction: "db_to_frappe"
     key_fields: ["frappe_field_1"]
 
@@ -30,5 +43,6 @@ tasks:
       "frappe_field_a": "code"
       "frappe_field_b": "description"
     db_type: "mssql"
+    db_name: "db2" 
     direction: "frappe_to_db"
-    key_fields: ["code"] 
+    key_fields: ["code"]

@@ -1,22 +1,27 @@
 import logging
 
+from database import DatabaseConnection
+from frappe import FrappeAPI
+
 
 class SyncTask:
-    def __init__(self, task_config, db_conn, frappe_api):
+    def __init__(self, task_config, db_conn: DatabaseConnection, frappe_api: FrappeAPI):
         self.endpoint = task_config.get("endpoint")
         self.mapping = task_config.get("mapping")
         self.db_type = task_config.get("db_type")
+        self.db_name = task_config.get("db_name")
         self.direction = task_config.get("direction", "db_to_frappe")
         self.key_fields = task_config.get("key_fields")
         self.process_all = task_config.get("process_all", False)
-        self.db_conn = db_conn.get_connection(self.db_type)
         self.frappe_api = frappe_api
+
         self._check_config(task_config)
+        self.db_conn = db_conn.get_connection(self.db_type, self.db_name)
 
     def _check_config(self, task_config):
         # Konfigurationsprüfung basierend auf der Synchronisationsrichtung
         if self.direction == "db_to_frappe":
-            required_fields = ["endpoint", "query", "mapping", "db_type"]
+            required_fields = ["endpoint", "query", "mapping", "db_type", "db_name"]
             missing_fields = [field for field in required_fields if field not in task_config]
             if missing_fields:
                 raise ValueError(
@@ -28,7 +33,7 @@ class SyncTask:
                     "Keine 'key_fields' definiert. Es können keine Updates durchgeführt werden, nur Inserts."
                 )
         elif self.direction == "frappe_to_db":
-            required_fields = ["endpoint", "table_name", "mapping", "db_type"]
+            required_fields = ["endpoint", "table_name", "mapping", "db_type", "db_name"]
             missing_fields = [field for field in required_fields if field not in task_config]
             if missing_fields:
                 raise ValueError(

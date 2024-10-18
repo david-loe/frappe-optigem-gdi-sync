@@ -31,6 +31,7 @@ cp config.yaml.example config.yaml
   - `query`
   - `mapping`
   - `db_type`
+  - `db_name`
   - Optional: `key_fields` (für Updates)
   - Optional: `process_all` (`true` wenn alle gefundenen Dokumente verarbeitet werden sollen, andernfalls nur das erste)
 - `frappe_to_db`:
@@ -38,6 +39,7 @@ cp config.yaml.example config.yaml
   - `table_name`
   - `mapping`
   - `db_type`
+  - `db_name`
   - Optional: `key_fields` (für Updates)
 
 ## Run
