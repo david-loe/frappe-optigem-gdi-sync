@@ -22,13 +22,13 @@ tasks:
       "frappe_field_2": "name"
     db_type: "firebird"
     direction: "db_to_frappe"
-    key_field: "frappe_field_1"
+    key_fields: ["frappe_field_1"]
 
   - endpoint: "http://frappe.example.com/api/resource/OtherDoctype"
-    query: "my_table" # Tabellenname
+    table_name: "my_table"
     mapping:
       "frappe_field_a": "code"
       "frappe_field_b": "description"
     db_type: "mssql"
     direction: "frappe_to_db"
-    key_field: "code" # Schlüsselspalte in der Datenbank
+    key_fields: ["code"] 
