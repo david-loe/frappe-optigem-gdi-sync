@@ -36,10 +36,11 @@ class FrappeAPI:
                 logging.error(f"Unbekannte HTTP-Methode: {method}")
                 return None
             response.raise_for_status()
-            logging.info(f"Daten erfolgreich an {endpoint} gesendet.")
+            logging.info(f"Daten erfolgreich an {method} {endpoint} gesendet.")
+            logging.debug(f"{data}")
             return response.json()
         except requests.exceptions.RequestException as e:
-            logging.error(f"Fehler beim Senden der Daten an {endpoint}: {e}")
+            logging.error(f"Fehler beim Senden der Daten an {method} {endpoint}: {e}")
             return None
 
     def get_data(self, endpoint, params=None):

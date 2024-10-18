@@ -22,7 +22,7 @@ class SyncManager:
     def _load_tasks(self):
         tasks = []
         for task_config in self.config.get("tasks", []):
-            task = SyncTask(task_config, self.db_conn, self.frappe_api)
+            task = SyncTask(task_config, self.db_conn, self.frappe_api, self.dry_run)
             tasks.append(task)
         return tasks
 
