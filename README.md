@@ -24,20 +24,21 @@ https://firebirdsql.org/file/documentation/reference_manuals/driver_manuals/odbc
 cp config.yaml.example config.yaml
 ```
 
-- **Erforderliche Felder je nach Synchronisationsrichtung:**
-  - Für `db_to_frappe` sind die folgenden Felder erforderlich:
-    - `endpoint`
-    - `query`
-    - `mapping`
-    - `db_type`
-    - Optional: `key_fields` (für Updates)
-    - Optional: `process_all` (`true` wenn alle gefundenen Dokumente verarbeitet werden sollen, andernfalls nur das erste)
-  - Für `frappe_to_db` sind die folgenden Felder erforderlich:
-    - `endpoint`
-    - `table_name`
-    - `mapping`
-    - `db_type`
-    - Optional: `key_fields` (für Updates)
+**Erforderliche Felder je nach Synchronisationsrichtung:**
+
+- `db_to_frappe`:
+  - `endpoint`
+  - `query`
+  - `mapping`
+  - `db_type`
+  - Optional: `key_fields` (für Updates)
+  - Optional: `process_all` (`true` wenn alle gefundenen Dokumente verarbeitet werden sollen, andernfalls nur das erste)
+- `frappe_to_db`:
+  - `endpoint`
+  - `table_name`
+  - `mapping`
+  - `db_type`
+  - Optional: `key_fields` (für Updates)
 
 ## Run
 
