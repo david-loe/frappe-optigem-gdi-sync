@@ -14,6 +14,7 @@ class SyncTask:
         frappe_api: FrappeAPI,
         dry_run: bool,
     ):
+        self.name = task_config.get("name")
         self.endpoint = task_config.get("endpoint")
         self.mapping = task_config.get("mapping")
         self.db_type = task_config.get("db_type")
@@ -67,6 +68,8 @@ class SyncTask:
             self.key_fields = []
 
     def execute(self):
+        if self.name:
+            logging.info(f"Starte Ausführung von '{self.name}'.")
         if self.direction == "db_to_frappe":
             self.sync_db_to_frappe()
         elif self.direction == "frappe_to_db":

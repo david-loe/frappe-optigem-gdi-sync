@@ -32,6 +32,7 @@ cp config.yaml.example config.yaml
   - `mapping`
   - `db_type`
   - `db_name`
+  - Optional: `name` (für logs)
   - Optional: `key_fields` (für Updates)
   - Optional: `create_new` (wenn `true` werden neue Dokumente bei Frappe erstellt, für die kein match anhand der `key_fields` gefunden wurde)
   - Optional: `process_all` (`true` wenn alle gefundenen Dokumente verarbeitet werden sollen, andernfalls nur das erste)
@@ -41,6 +42,7 @@ cp config.yaml.example config.yaml
   - `mapping`
   - `db_type`
   - `db_name`
+  - Optional: `name` (für logs)
   - Optional: `key_fields` (für Updates)
   - Optional: `create_new` (wenn `true` werden neue Dokumente in der Datenbank eingefügt, für die kein match anhand der `key_fields` gefunden wurde)
 
