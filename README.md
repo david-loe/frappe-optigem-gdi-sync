@@ -2,23 +2,29 @@
 
 Syncronisation zwischen Frappe und Optigem / GDI Lohn & Gehalt
 
-## Setup
+## Run
 
-### 1. Pakete installieren
+using docker
 
 ```
-pip install -r requirements.txt
+docker run -v ./config.yaml:/config.yaml davidloe/frappe-optigem-gdi-sync --config /config.yaml
 ```
 
-### 2. pyodbc MSSQL Treiber installieren
+or running locally
 
-https://github.com/mkleehammer/pyodbc/wiki/Install
+```
+script.py
+```
 
-### 3. Firebird Client Library installieren
+```
+options:
+  -h, --help           show this help message and exit
+  --loglevel LOGLEVEL  Setzt das Loglevel (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  --config CONFIG      Pfad zur Konfigurationsdatei
+  --dry-run            Führt den Sync im Dry-Run-Modus aus (keine Änderungen werden vorgenommen)
+```
 
-https://firebirdsql.org/file/documentation/reference_manuals/driver_manuals/odbc/html/fbodbc205-install.html
-
-### 4. Config anpassen
+## Config anpassen
 
 ```
 cp config.yaml.example config.yaml
@@ -46,16 +52,18 @@ cp config.yaml.example config.yaml
   - Optional: `key_fields` (für Updates)
   - Optional: `create_new` (wenn `true` werden neue Dokumente in der Datenbank eingefügt, für die kein match anhand der `key_fields` gefunden wurde)
 
-## Run
+## Setup Local
+
+### 1. pyodbc MSSQL Treiber installieren
+
+https://github.com/mkleehammer/pyodbc/wiki/Install
+
+### 2. Firebird Client Library installieren
+
+https://firebirdsql.org/file/documentation/reference_manuals/driver_manuals/odbc/html/fbodbc205-install.html
+
+### 3. Pakete installieren
 
 ```
-python sync.py
-```
-
-```
-options:
-  -h, --help           show this help message and exit
-  --loglevel LOGLEVEL  Setzt das Loglevel (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-  --config CONFIG      Pfad zur Konfigurationsdatei
-  --dry-run            Führt den Sync im Dry-Run-Modus aus (keine Änderungen werden vorgenommen)
+pip install -r requirements.txt
 ```
