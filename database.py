@@ -21,11 +21,11 @@ class DatabaseConnection:
             for db_name, db_config in config.items():
                 try:
                     conn = fdb.connect(
-                        host=db_config["host"],
-                        port=db_config["port"],
-                        database=db_config["database"],
-                        user=db_config["user"],
-                        password=db_config["password"],
+                        host=db_config.get("host"),
+                        port=db_config.get("port"),
+                        database=db_config.get("database"),
+                        user=db_config.get("user"),
+                        password=db_config.get("password"),
                         charset="UTF8",
                     )
                     self.firebird_conns[db_name] = conn
@@ -39,11 +39,12 @@ class DatabaseConnection:
             for db_name, db_config in config.items():
                 try:
                     mssql_conn_str = (
-                        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-                        f"SERVER={db_config['server']};"
-                        f"DATABASE={db_config['database']};"
-                        f"UID={db_config['user']};"
-                        f"PWD={db_config['password']}"
+                        f"DRIVER={{ODBC Driver 18 for SQL Server}};"
+                        f"SERVER={db_config.get('server')};"
+                        f"DATABASE={db_config.get('database')};"
+                        f"UID={db_config.get('user')};"
+                        f"PWD={db_config.get('password')};"
+                        f"TrustServerCertificate={'yes' if db_config.get('trust_server_certificate') else 'no'}"
                     )
                     conn = pyodbc.connect(mssql_conn_str)
                     self.mssql_conns[db_name] = conn

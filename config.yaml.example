@@ -1,50 +1,51 @@
 firebird:
   db1:
-    host: "localhost"
+    host: localhost
     port: 3050
-    database: "/path/to/database1.fdb"
-    user: "sysdba"
-    password: "masterkey"
+    database: /path/to/database1.fdb
+    user: sysdba
+    password: masterkey
   db2:
-    host: "localhost"
+    host: localhost
     port: 3050
-    database: "/path/to/database2.fdb"
-    user: "sysdba"
-    password: "masterkey"
+    database: /path/to/database2.fdb
+    user: sysdba
+    password: masterkey
 
 mssql:
   db1:
-    server: "localhost"
-    database: "mydatabase1"
-    user: "sa"
-    password: "mypassword"
+    server: localhost
+    database: mydatabase1
+    user: sa
+    password: mypassword
+    trust_server_certificate: true
   db2:
-    server: "localhost"
-    database: "mydatabase2"
-    user: "sa"
-    password: "mypassword"
+    server: localhost
+    database: mydatabase2
+    user: sa
+    password: mypassword
 
 frappe_auth:
-  api_key: "your_api_key"
-  api_secret: "your_api_secret"
+  api_key: your_api_key
+  api_secret: your_api_secret
 
 tasks:
-  - endpoint: "http://frappe.example.com/api/resource/Doctype"
-    query: "SELECT id, name FROM table"
+  - endpoint: https://frappe.example.com/api/resource/Doctype
+    query: SELECT id, name FROM table
     mapping:
-      "frappe_field_1": "id"
-      "frappe_field_2": "name"
-    db_type: "firebird"
-    db_name: "db1"
-    direction: "db_to_frappe"
-    key_fields: ["frappe_field_1"]
+      frappe_field_1: id
+      frappe_field_2: name
+    db_type: firebird
+    db_name: db1
+    direction: db_to_frappe
+    key_fields: [frappe_field_1]
 
-  - endpoint: "http://frappe.example.com/api/resource/OtherDoctype"
-    table_name: "my_table"
+  - endpoint: https://frappe.example.com/api/resource/OtherDoctype
+    table_name: my_table
     mapping:
-      "frappe_field_a": "code"
-      "frappe_field_b": "description"
-    db_type: "mssql"
-    db_name: "db2" 
-    direction: "frappe_to_db"
-    key_fields: ["code"]
+      frappe_field_a: code
+      frappe_field_b: description
+    db_type: mssql
+    db_name: db2
+    direction: frappe_to_db
+    key_fields: [code]

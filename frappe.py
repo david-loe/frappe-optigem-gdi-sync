@@ -4,6 +4,7 @@ from typing import Dict
 import requests
 import json
 from datetime import datetime, date
+from decimal import Decimal
 
 
 class FrappeAPI:
@@ -23,14 +24,14 @@ class FrappeAPI:
             )
 
     def send_data(self, method, endpoint, data):
-        if self.dry_run:
-            logging.info(
-                f"""DRY_RUN: {method} {endpoint}
-                    {data}"""
-            )
-            return None
         try:
-            json_data = json.dumps(data, cls=DateTimeEncoder)
+            json_data = json.dumps(data, cls=CustomEncoder)
+            if self.dry_run:
+                logging.info(
+                    f"""DRY_RUN: {method} {endpoint}
+                        {json_data}"""
+                )
+                return None
             headers = self.headers.copy()
             headers["Content-Type"] = "application/json"
             if method == "POST":
@@ -60,8 +61,10 @@ class FrappeAPI:
             return None
 
 
-class DateTimeEncoder(json.JSONEncoder):
+class CustomEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, (datetime, date)):
             return obj.isoformat()
-        return super(DateTimeEncoder, self).default(obj)
+        elif isinstance(obj, Decimal):
+            return float(obj)  # or str(obj) if you prefer
+        return super(CustomEncoder, self).default(obj)
