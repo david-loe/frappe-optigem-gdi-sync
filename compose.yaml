@@ -6,10 +6,13 @@ services:
     command: --config /config.yaml
     env_file:
       - .env
-  db:
-    image: postgres
-    restart: always
-    volumes:
-      - db_data::/var/lib/postgresql/data
-    env_file:
-      - .env
+  # db:
+  #   image: postgres
+  #   restart: always
+  #   volumes:
+  #     - db_data:/var/lib/postgresql/data
+  #   env_file:
+  #     - .env
+
+volumes:
+  db_data:

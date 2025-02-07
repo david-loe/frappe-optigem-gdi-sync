@@ -9,7 +9,7 @@ class DbToFrappeSyncTask(SyncTaskBase):
 
     def validate_config(self):
         required_fields = ["endpoint", "query", "mapping", "db_name"]
-        missing_fields = [field for field in required_fields if field not in self]
+        missing_fields = [field for field in required_fields if not hasattr(self, field)]
         if missing_fields:
             raise ValueError(
                 f"Fehlende erforderliche Konfigurationsfelder für 'db_to_frappe': {', '.join(missing_fields)}"

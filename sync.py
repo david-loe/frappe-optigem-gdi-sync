@@ -5,8 +5,10 @@ from typing import Any, Dict
 
 import yaml
 from database import DatabaseConnection
+from db_to_frappe_sync import DbToFrappeSyncTask
 from frappe import FrappeAPI
-from sync_task import SyncTaskBase, create_sync_task
+from frappe_to_db_sync import FrappeToDbSyncTask
+from sync_task import SyncTaskBase
 
 
 class SyncManager:
@@ -22,9 +24,19 @@ class SyncManager:
     def _load_tasks(self):
         tasks: list[SyncTaskBase] = []
         for task_config in self.config.get("tasks", []):
-            task = create_sync_task(task_config, self.db_conn, self.frappe_api, self.dry_run)
+            task = self._create_sync_task(task_config)
             tasks.append(task)
         return tasks
+
+    def _create_sync_task(self, task_config: dict[str, Any]) -> SyncTaskBase:
+        """Erzeugt basierend auf der Konfiguration die passende Sync-Task-Instanz."""
+        direction = task_config.get("direction", "db_to_frappe")
+        if direction == "db_to_frappe":
+            return DbToFrappeSyncTask(task_config, self.db_conn, self.frappe_api, self.dry_run)
+        elif direction == "frappe_to_db":
+            return FrappeToDbSyncTask(task_config, self.db_conn, self.frappe_api, self.dry_run)
+        else:
+            raise ValueError(f"Unbekannte Synchronisationsrichtung: {direction}")
 
     def run(self):
         for task in self.tasks:
@@ -63,7 +75,7 @@ def main():
         sys.exit(1)
 
     # Dry-Run von den Argumenten setzen
-    config["dry_run"] = args.dry_run
+    config["dry_run"] = args.dry_run or config.get("dry_run", False)
     sync_manager = SyncManager(config)
     sync_manager.run()
 

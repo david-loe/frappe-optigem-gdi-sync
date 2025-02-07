@@ -1,12 +1,7 @@
 from abc import ABC, abstractmethod
-import logging
 from typing import Any, Literal
-from database import DatabaseConnection, format_query
-from db_to_frappe_sync import DbToFrappeSyncTask
+from database import DatabaseConnection
 from frappe import FrappeAPI
-import urllib.parse
-
-from frappe_to_db_sync import FrappeToDbSyncTask
 
 
 class SyncTaskBase(ABC):
@@ -48,16 +43,3 @@ class SyncTaskBase(ABC):
     def sync(self):
         """Führt die Synchronisation aus."""
         pass
-
-
-def create_sync_task(
-    task_config: dict[str, Any], db_conn: DatabaseConnection, frappe_api: FrappeAPI, dry_run: bool
-) -> SyncTaskBase:
-    """Erzeugt basierend auf der Konfiguration die passende Sync-Task-Instanz."""
-    direction = task_config.get("direction", "db_to_frappe")
-    if direction == "db_to_frappe":
-        return DbToFrappeSyncTask(task_config, db_conn, frappe_api, dry_run)
-    elif direction == "frappe_to_db":
-        return FrappeToDbSyncTask(task_config, db_conn, frappe_api, dry_run)
-    else:
-        raise ValueError(f"Unbekannte Synchronisationsrichtung: {direction}")
