@@ -5,10 +5,10 @@ from typing import Any, Dict
 
 import yaml
 from api.database import DatabaseConnection
-from sync.db_to_frappe_sync import DbToFrappeSyncTask
+from sync.db_to_frappe import DbToFrappeSyncTask
 from api.frappe import FrappeAPI
-from sync.frappe_to_db_sync import FrappeToDbSyncTask
-from sync.sync_task import SyncTaskBase
+from sync.frappe_to_db import FrappeToDbSyncTask
+from sync.task import SyncTaskBase
 
 
 class SyncManager:

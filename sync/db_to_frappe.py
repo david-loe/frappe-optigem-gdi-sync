@@ -1,7 +1,7 @@
 import logging
 
 import urllib
-from sync.sync_task import SyncTaskBase
+from sync.task import SyncTaskBase
 
 
 class DbToFrappeSyncTask(SyncTaskBase):
