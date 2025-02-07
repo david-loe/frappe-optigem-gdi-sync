@@ -8,7 +8,7 @@ class FrappeToDbSyncTask(SyncTaskBase):
 
     def validate_config(self):
         required_fields = ["endpoint", "mapping", "db_name", "table_name"]
-        missing_fields = [field for field in required_fields if not hasattr(self, field)]
+        missing_fields = [field for field in required_fields if getattr(self, field, None) is None]
         if missing_fields:
             raise ValueError(
                 f"Fehlende erforderliche Konfigurationsfelder für 'frappe_to_db': {', '.join(missing_fields)}"
@@ -20,31 +20,11 @@ class FrappeToDbSyncTask(SyncTaskBase):
         logging.info(f"Starte Ausführung von '{self.name}'.")
 
         # Daten von Frappe abrufen
-        response = self.frappe_api.get_data(self.endpoint)
-        if not response:
-            return
+        frappe_records = self.get_frappe_records()
 
-        data_list = response.get("data", [])
-        cursor = self.db_conn.cursor()
-
-        for data in data_list:
-            # Mapping umkehren: Frappe-Felder zu DB-Spalten
-            db_data = {}
-            for frappe_field, db_column in self.mapping.items():
-                if frappe_field in data:
-                    db_data[db_column] = data[frappe_field]
-                else:
-                    logging.warning(f"Feld {frappe_field} nicht in Frappe-Daten gefunden.")
-
-            # Prüfen, ob alle Schlüsselfelder vorhanden sind
-            key_values = {}
-            missing_keys = False
-            for key_field in self.key_fields:
-                if key_field in data:
-                    key_values[key_field] = data[key_field]
-                else:
-                    logging.warning(f"Schlüsselfeld {key_field} nicht in Frappe-Daten gefunden.")
-                    missing_keys = True
+        for frappe_rec in frappe_records:
+            db_data = self.map_frappe_to_db(frappe_rec)
+            key_values, missing_keys = self.get_key_values_from_data(frappe_rec)
 
             if missing_keys:
                 logging.warning("Nicht alle Schlüsselfelder vorhanden. Überspringe Datensatz.")
@@ -54,44 +34,25 @@ class FrappeToDbSyncTask(SyncTaskBase):
             where_clause = " AND ".join([f"{key} = ?" for key in key_values.keys()])
             select_sql = f"SELECT COUNT(*) FROM {self.table_name} WHERE {where_clause}"
             params = list(key_values.values())
-            cursor.execute(select_sql, params)
-            exists = cursor.fetchone()[0] > 0
-
+            exists = False
+            with self.db_conn.cursor() as cursor:
+                cursor.execute(select_sql, params)
+                exists = cursor.fetchone()[0] > 0
             if exists:
-                # Update
-                set_clause = ", ".join([f"{col} = ?" for col in db_data.keys()])
-                update_sql = f"UPDATE {self.table_name} SET {set_clause} WHERE {where_clause}"
-                params = list(db_data.values()) + list(key_values.values())
-                if self.dry_run:
-                    logging.info(
-                        f"""DRY_RUN: {self.db_name}
-                            {format_query(update_sql, params)}"""
-                    )
-                else:
-                    try:
-                        cursor.execute(update_sql, params)
-                        self.db_conn.commit()
-                        logging.info(f"Datensatz mit Schlüsseln {key_values} erfolgreich aktualisiert.")
-                    except Exception as e:
-                        logging.error(f"Fehler beim Aktualisieren des Datensatzes: {e}")
-                        self.db_conn.rollback()
+                self.update_db_record(frappe_rec)
+
             elif self.create_new:
                 # Insert
-                placeholders = ", ".join(["?"] * len(db_data))
-                columns = ", ".join(db_data.keys())
-                insert_sql = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders})"
-                if self.dry_run:
-                    logging.info(
-                        f"""DRY_RUN: {self.db_name}
-                            {format_query(update_sql, params)}"""
-                    )
-                else:
-                    try:
-                        cursor.execute(insert_sql, list(db_data.values()))
-                        self.db_conn.commit()
-                        logging.info(f"Datensatz mit Schlüsseln {key_values} erfolgreich eingefügt.")
-                    except Exception as e:
-                        logging.error(f"Fehler beim Einfügen des Datensatzes: {e}")
-                        self.db_conn.rollback()
+                self.insert_frappe_record_to_db(frappe_rec)
 
-        cursor.close()
+    def get_key_values_from_data(self, data: dict):
+        key_values = {}
+        missing_keys = False
+        for key_field in self.key_fields:
+            if key_field in data:
+                key_values[key_field] = data[key_field]
+            else:
+                logging.warning(f"Schlüsselfeld {key_field} nicht in Frappe-Daten gefunden.")
+                missing_keys = True
+                continue
+        return key_values, missing_keys
