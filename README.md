@@ -36,7 +36,6 @@ cp config.yaml.example config.yaml
   - `endpoint`
   - `query`
   - `mapping`
-  - `db_type`
   - `db_name`
   - Optional: `name` (für logs)
   - Optional: `key_fields` (für Updates)
@@ -46,7 +45,6 @@ cp config.yaml.example config.yaml
   - `endpoint`
   - `table_name`
   - `mapping`
-  - `db_type`
   - `db_name`
   - Optional: `name` (für logs)
   - Optional: `key_fields` (für Updates)
