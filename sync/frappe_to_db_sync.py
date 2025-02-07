@@ -1,6 +1,6 @@
 import logging
-from database import format_query
-from sync_task import SyncTaskBase
+from api.database import format_query
+from sync.sync_task import SyncTaskBase
 
 
 class FrappeToDbSyncTask(SyncTaskBase):

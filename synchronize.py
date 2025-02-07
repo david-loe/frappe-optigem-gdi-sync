@@ -4,11 +4,11 @@ import sys
 from typing import Any, Dict
 
 import yaml
-from database import DatabaseConnection
-from db_to_frappe_sync import DbToFrappeSyncTask
-from frappe import FrappeAPI
-from frappe_to_db_sync import FrappeToDbSyncTask
-from sync_task import SyncTaskBase
+from api.database import DatabaseConnection
+from sync.db_to_frappe_sync import DbToFrappeSyncTask
+from api.frappe import FrappeAPI
+from sync.frappe_to_db_sync import FrappeToDbSyncTask
+from sync.sync_task import SyncTaskBase
 
 
 class SyncManager:

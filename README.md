@@ -13,7 +13,7 @@ docker run -v ./config.yaml:/config.yaml davidloe/frappe-optigem-gdi-sync --conf
 or running locally
 
 ```
-script.py
+synchronize.py
 ```
 
 ```

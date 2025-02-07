@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Literal
-from database import DatabaseConnection
-from frappe import FrappeAPI
+from api.database import DatabaseConnection
+from api.frappe import FrappeAPI
 
 
 class SyncTaskBase(ABC):
