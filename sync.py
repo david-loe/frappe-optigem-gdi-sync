@@ -6,7 +6,7 @@ from typing import Any, Dict
 import yaml
 from database import DatabaseConnection
 from frappe import FrappeAPI
-from sync_task import SyncTask
+from sync_task import SyncTaskBase, create_sync_task
 
 
 class SyncManager:
@@ -20,15 +20,15 @@ class SyncManager:
         self.tasks = self._load_tasks()
 
     def _load_tasks(self):
-        tasks = []
+        tasks: list[SyncTaskBase] = []
         for task_config in self.config.get("tasks", []):
-            task = SyncTask(task_config, self.db_conn, self.frappe_api, self.dry_run)
+            task = create_sync_task(task_config, self.db_conn, self.frappe_api, self.dry_run)
             tasks.append(task)
         return tasks
 
     def run(self):
         for task in self.tasks:
-            task.execute()
+            task.sync()
         self.db_conn.close_connections()
 
 

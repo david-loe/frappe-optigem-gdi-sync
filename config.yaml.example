@@ -1,25 +1,27 @@
-firebird:
+databases:
   db1:
+    type: firebird
     host: localhost
     port: 3050
     database: /path/to/database1.fdb
     user: sysdba
     password: masterkey
   db2:
+    type: firebird
     host: localhost
     port: 3050
     database: /path/to/database2.fdb
     user: sysdba
     password: masterkey
-
-mssql:
-  db1:
+  db3:
+    type: mssql
     server: localhost
     database: mydatabase1
     user: sa
     password: mypassword
     trust_server_certificate: true
-  db2:
+  db4:
+    type: mssql
     server: localhost
     database: mydatabase2
     user: sa
@@ -35,7 +37,6 @@ tasks:
     mapping:
       frappe_field_1: id
       frappe_field_2: name
-    db_type: firebird
     db_name: db1
     direction: db_to_frappe
     key_fields: [frappe_field_1]
@@ -45,7 +46,6 @@ tasks:
     mapping:
       frappe_field_a: code
       frappe_field_b: description
-    db_type: mssql
     db_name: db2
     direction: frappe_to_db
     key_fields: [code]
