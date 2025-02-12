@@ -62,11 +62,28 @@ class BidirectionalSyncTask(SyncTaskBase):
                 else:
                     logging.info(f"Datensatz {key} ist synchronisiert.")
             elif frappe_rec and not db_rec:
-                logging.info(f"Datensatz {key} existiert nur in Frappe. Einfügen in DB.")
-                self.insert_frappe_record_to_db(frappe_rec)
+                # Der Datensatz existiert in Frappe, aber nicht in der DB.
+                # Prüfe, ob der Frappe-Datensatz bereits synchronisiert wurde – er hätte dann z. B. ein 'db_id'-Feld gesetzt.
+                if frappe_rec.get("db_id"):
+                    logging.info(f"Lösche Frappe-Datensatz {key}")
+                    self.delete_frappe_record_by_id(frappe_rec)
+                else:
+                    logging.info(f"Neuer Frappe-Datensatz {key} gefunden. Einfügen in die DB.")
+                    created_db_rec = self.insert_frappe_record_to_db(frappe_rec)
+                    if created_db_rec and created_db_rec.get("id"):
+                        self.update_frappe_foreign_id(frappe_rec, created_db_rec["id"])
+
             elif db_rec and not frappe_rec:
-                logging.info(f"Datensatz {key} existiert nur in DB. Einfügen in Frappe.")
-                self.insert_db_record_to_frappe(db_rec)
+                # Der Datensatz existiert in der DB, aber nicht in Frappe.
+                # Falls der DB-Datensatz bereits synchronisiert wurde, sollte das Foreign-ID-Feld (z. B. 'frappe_id') gesetzt sein.
+                if db_rec.get("frappe_id"):
+                    logging.info(f"Lösche DB-Datensatz {key}")
+                    self.delete_db_record_by_id(db_rec)
+                else:
+                    logging.info(f"Neuer DB-Datensatz {key} gefunden. Einfügen in Frappe.")
+                    created_frappe_doc = self.insert_db_record_to_frappe(db_rec)
+                    if created_frappe_doc and created_frappe_doc.get("name"):
+                        self.update_db_foreign_id(db_rec, created_frappe_doc["name"])
 
     def get_modified_timestamp(self, record: dict, source: str) -> datetime:
         """

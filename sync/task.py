@@ -88,10 +88,7 @@ class SyncTaskBase(ABC):
         """
         Frappe-Datensätze abrufen
         """
-        frappe_response = self.frappe_api.get_data(self.endpoint)
-        if not frappe_response:
-            logging.error("Keine Daten von Frappe erhalten.")
-            return []
+        frappe_response = self.frappe_api.get_all_data(self.endpoint)
         return frappe_response.get("data", [])
 
     def get_frappe_key_record_dict(self):
@@ -150,7 +147,7 @@ class SyncTaskBase(ABC):
         Fügt einen neuen Datensatz in Frappe ein, basierend auf den Daten aus der DB.
         """
         frappe_data = self.map_db_to_frappe(db_rec)
-        self.frappe_api.send_data("POST", self.endpoint, frappe_data)
+        return self.frappe_api.send_data("POST", self.endpoint, frappe_data)
 
     def update_frappe_record(self, db_rec: dict, frappe_doc_name: str):
         """
@@ -159,7 +156,7 @@ class SyncTaskBase(ABC):
         """
         frappe_data = self.map_db_to_frappe(db_rec)
         endpoint = f"{self.endpoint}/{frappe_doc_name}"
-        self.frappe_api.send_data("PUT", endpoint, frappe_data)
+        return self.frappe_api.send_data("PUT", endpoint, frappe_data)
 
     def update_db_record(self, frappe_rec: dict):
         """

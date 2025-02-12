@@ -23,7 +23,6 @@ class FrappeToDbSyncTask(SyncTaskBase):
         frappe_records = self.get_frappe_records()
 
         for frappe_rec in frappe_records:
-            db_data = self.map_frappe_to_db(frappe_rec)
             key_values, missing_keys = self.get_key_values_from_data(frappe_rec)
 
             if missing_keys:
