@@ -13,6 +13,7 @@ def get_resource(doctype):
     """
     Unterstützt folgende Query-Parameter:
       - fields: JSON-kodierte Liste von Feldern (z.B. ?fields=["description", "name"])
+                Falls fields=["*"] übergeben wird, werden alle Felder zurückgegeben.
       - limit_start: Startindex (default: 0)
       - limit_page_length: Anzahl Datensätze pro Seite (default: 20)
 
@@ -46,13 +47,16 @@ def get_resource(doctype):
         except ValueError:
             abort(400, description="Ungültiger 'fields'-Parameter. Erwartet wird eine JSON-kodierte Liste.")
 
-        filtered_records = []
-        for rec in records:
-            filtered_record = {}
-            for field in fields:
-                # Es wird auch None zurückgegeben, falls das Feld nicht vorhanden ist
-                filtered_record[field] = rec.get(field)
-            filtered_records.append(filtered_record)
+        if fields == ["*"]:
+            # Alle Felder werden zurückgegeben
+            filtered_records = records
+        else:
+            filtered_records = []
+            for rec in records:
+                filtered_record = {}
+                for field in fields:
+                    filtered_record[field] = rec.get(field)
+                filtered_records.append(filtered_record)
         records = filtered_records
     else:
         # Ohne "fields"-Parameter: Rückgabe nur des "name"-Feldes
