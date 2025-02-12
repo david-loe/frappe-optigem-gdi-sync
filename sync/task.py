@@ -25,8 +25,8 @@ class SyncTaskBase(ABC):
         self.create_new: bool = self.task_config.get("create_new", False)
         self.query: str = self.task_config.get("query")
         self.table_name: str = self.task_config.get("table_name")
-        self.frappe_modified_field: str = self.task_config.get("frappe_modified_field")
-        self.db_modified_field: str = self.task_config.get("db_modified_field")
+        self.frappe: dict[str, str] = self.task_config.get("frappe")
+        self.db: dict[str, str] = self.task_config.get("db")
 
         # Sicherstellen, dass 'key_fields' eine Liste ist
         if self.key_fields:
@@ -60,7 +60,7 @@ class SyncTaskBase(ABC):
             logging.error(f"Fehler bei der Ausführung von SQL: {e}")
             self.db_conn.rollback()
 
-    def map_frappe_to_db(self, record: dict) -> dict:
+    def map_frappe_to_db(self, record: dict, warns=True) -> dict:
         """
         Übersetzt einen Frappe-Datensatz in ein DB-Datenformat anhand des Mapping.
         """
@@ -68,11 +68,11 @@ class SyncTaskBase(ABC):
         for frappe_field, db_column in self.mapping.items():
             if frappe_field in record:
                 db_data[db_column] = record[frappe_field]
-            else:
+            elif warns:
                 logging.warning(f"Feld '{frappe_field}' fehlt im Frappe-Datensatz {record}.")
         return db_data
 
-    def map_db_to_frappe(self, record: dict) -> dict:
+    def map_db_to_frappe(self, record: dict, warns=True) -> dict:
         """
         Übersetzt einen DB-Datensatz in ein Frappe-Datenformat anhand des inversen Mapping.
         """
@@ -80,9 +80,19 @@ class SyncTaskBase(ABC):
         for frappe_field, db_column in self.mapping.items():
             if db_column in record:
                 frappe_data[frappe_field] = record[db_column]
-            else:
+            elif warns:
                 logging.warning(f"Spalte '{db_column}' fehlt im DB-Datensatz {record}.")
         return frappe_data
+
+    def split_frappe_in_data_and_keys(self, frappe_rec: dict):
+        keys = {}
+        data = {}
+        for k, v in frappe_rec.items():
+            if k in self.key_fields:
+                keys[k] = v
+            else:
+                data[k] = v
+        return data, keys
 
     def get_frappe_records(self) -> list:
         """
@@ -147,26 +157,29 @@ class SyncTaskBase(ABC):
         Fügt einen neuen Datensatz in Frappe ein, basierend auf den Daten aus der DB.
         """
         frappe_data = self.map_db_to_frappe(db_rec)
-        return self.frappe_api.send_data("POST", self.endpoint, frappe_data)
+        return self.frappe_api.send_data("POST", self.endpoint, frappe_data).get("data")
 
     def update_frappe_record(self, db_rec: dict, frappe_doc_name: str):
         """
         Aktualisiert einen vorhandenen Frappe-Datensatz mit den Werten aus dem DB-Datensatz.
         Es wird davon ausgegangen, dass der Frappe-Datensatz ein eindeutiges 'name'-Feld besitzt.
         """
-        frappe_data = self.map_db_to_frappe(db_rec)
+        frappe_rec = self.map_db_to_frappe(db_rec)
+        frappe_data, frappe_keys = self.split_frappe_in_data_and_keys(frappe_rec)
         endpoint = f"{self.endpoint}/{frappe_doc_name}"
-        return self.frappe_api.send_data("PUT", endpoint, frappe_data)
+        return self.frappe_api.send_data("PUT", endpoint, frappe_data).get("data")
 
     def update_db_record(self, frappe_rec: dict):
         """
         Aktualisiert einen vorhandenen DB-Datensatz mit den Werten aus dem Frappe-Datensatz.
         """
-        db_data = self.map_frappe_to_db(frappe_rec)
-        where_clause = " AND ".join([f"{self.mapping[field]} = ?" for field in self.key_fields])
+        frappe_rec_data, frappe_rec_keys = self.split_frappe_in_data_and_keys(frappe_rec)
+        db_data = self.map_frappe_to_db(frappe_rec_data, warns=False)
+        db_keys = self.map_frappe_to_db(frappe_rec_keys, warns=False)
+        where_clause = " AND ".join([f"{k} = ?" for k in db_keys.keys()])
         set_clause = ", ".join([f"{col} = ?" for col in db_data.keys()])
         sql = f"UPDATE {self.table_name} SET {set_clause} WHERE {where_clause}"
-        params = list(db_data.values()) + [db_data[self.mapping[field]] for field in self.key_fields]
+        params = list(db_data.values()) + list(db_keys.values())
         self.execute_query(sql, params, f"DB-Datensatz wurde aktualisiert.")
 
     def insert_frappe_record_to_db(self, frappe_rec: dict):
@@ -179,3 +192,11 @@ class SyncTaskBase(ABC):
         sql = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders})"
         params = list(db_data.values())
         self.execute_query(sql, params, f"Neuer DB-Datensatz wurde eingefügt.")
+
+    def update_db_foreign_id(self, db_rec: dict, foreign_id: str):
+        set_clause = f"{self.db.get('fk_id_field')} = ?"
+        db_id_column = self.mapping.get(self.frappe.get("fk_id_field"))
+        where_clause = f"{db_id_column} = ?"
+        sql = f"UPDATE {self.table_name} SET {set_clause} WHERE {where_clause}"
+        params = [foreign_id, db_rec.get(db_id_column)]
+        self.execute_query(sql, params, f"DB-Datensatz wurde aktualisiert.")

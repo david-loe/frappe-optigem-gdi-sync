@@ -22,8 +22,8 @@ class BidirectionalSyncTask(SyncTaskBase):
             "db_name",
             "table_name",
             "key_fields",
-            "frappe_modified_field",
-            "db_modified_field",
+            "frappe",
+            "db",
         ]
         missing_fields = [field for field in required_fields if getattr(self, field, None) is None]
         if missing_fields:
@@ -61,10 +61,11 @@ class BidirectionalSyncTask(SyncTaskBase):
                     self.update_frappe_record(db_rec, frappe_rec["name"])
                 else:
                     logging.info(f"Datensatz {key} ist synchronisiert.")
+
             elif frappe_rec and not db_rec:
                 # Der Datensatz existiert in Frappe, aber nicht in der DB.
-                # Prüfe, ob der Frappe-Datensatz bereits synchronisiert wurde – er hätte dann z. B. ein 'db_id'-Feld gesetzt.
-                if frappe_rec.get("db_id"):
+                # Prüfe, ob der Frappe-Datensatz bereits synchronisiert wurde – er hätte dann das fk_id-Feld gesetzt.
+                if frappe_rec.get(self.frappe.get("fk_id_field")):
                     logging.info(f"Lösche Frappe-Datensatz {key}")
                     self.delete_frappe_record_by_id(frappe_rec)
                 else:
@@ -75,8 +76,8 @@ class BidirectionalSyncTask(SyncTaskBase):
 
             elif db_rec and not frappe_rec:
                 # Der Datensatz existiert in der DB, aber nicht in Frappe.
-                # Falls der DB-Datensatz bereits synchronisiert wurde, sollte das Foreign-ID-Feld (z. B. 'frappe_id') gesetzt sein.
-                if db_rec.get("frappe_id"):
+                # Falls der DB-Datensatz bereits synchronisiert wurde, sollte das fk_id-Feld gesetzt sein.
+                if db_rec.get(self.db.get("fk_id_field")):
                     logging.info(f"Lösche DB-Datensatz {key}")
                     self.delete_db_record_by_id(db_rec)
                 else:
@@ -92,13 +93,19 @@ class BidirectionalSyncTask(SyncTaskBase):
         """
         ts_str = None
         if source == "frappe":
-            ts_str = record.get(self.frappe_modified_field)
+            ts_str = record.get(self.frappe.get("modified_field"))
         elif source == "db":
-            ts_str = record.get(self.db_modified_field)
+            ts_str = record.get(self.db.get("modified_field"))
+            if ts_str is None and "fallback_modified_field" in self.db:
+                ts_str = record.get(self.db.get("fallback_modified_field"))
         if ts_str is None:
             return None
-        try:
-            return datetime.fromisoformat(ts_str)
-        except Exception as e:
-            logging.error(f"Fehler beim Parsen des Timestamps '{ts_str}': {e}")
-            return None
+        if isinstance(ts_str, datetime):
+            return ts_str
+        else:
+            try:
+                return datetime.fromisoformat(ts_str)
+            except Exception as e:
+                logging.error(source)
+                logging.error(f"Fehler beim Parsen des Timestamps '{ts_str}' (type:{type(ts_str)}): {e}")
+                return None
