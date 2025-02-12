@@ -71,8 +71,10 @@ class FrappeAPI:
         limit_start = 0
         data = []
         while len(data) == limit_start:
-            endpoint = f"{endpoint}{separator}limit={self.limit_page_length}&limit_start={limit_start}"
-            res = self.get_data(endpoint, params)
+            partial_endpoint = (
+                f'{endpoint}{separator}limit={self.limit_page_length}&limit_start={limit_start}&fields=["*"]'
+            )
+            res = self.get_data(partial_endpoint, params)
             if res:
                 more_data = res.get("data")
                 if isinstance(more_data, list):
