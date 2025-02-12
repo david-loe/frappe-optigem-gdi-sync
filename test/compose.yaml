@@ -5,7 +5,7 @@ services:
     build: ..
     volumes:
       - ./config.yaml:/config.yaml:ro
-    command: --config /config.yaml
+    command: --config /config.yaml --loglevel debug
     env_file:
       - ../.env
   mssql:

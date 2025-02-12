@@ -195,37 +195,5 @@ VALUES (
     '0123456809',
     '2025-02-11 12:00:00',
     NULL
-  ),
-  (
-    'Nina',
-    'Schäfer',
-    'nina.schaefer@example.com',
-    '0123456810',
-    '2025-02-11 12:00:00',
-    NULL
-  ),
-  (
-    'Oliver',
-    'Maier',
-    'oliver.maier@example.com',
-    '0123456811',
-    '2025-02-11 12:00:00',
-    NULL
-  ),
-  (
-    'Sabina',
-    'Huber',
-    'sabina.huber@example.com',
-    '0123456812',
-    '2025-02-11 12:00:00',
-    NULL
-  ),
-  (
-    'Bernd',
-    'Scholz',
-    'bernd.scholz@example.com',
-    '0123456813',
-    '2025-02-11 12:00:00',
-    NULL
   );
 END;

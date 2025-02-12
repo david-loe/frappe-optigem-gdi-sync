@@ -1,3 +1,4 @@
+import datetime
 import json
 from flask import Flask, request, jsonify, abort
 import uuid  # Importiere das Modul für UUIDs
@@ -85,6 +86,8 @@ def create_resource(doctype):
     # Generiere eine UUID, falls kein "name" Feld vorhanden ist
     if "name" not in record or record["name"] == None:
         record["name"] = str(uuid.uuid4())
+    if "modified" not in record or record["modified"] == None:
+        record["modified"] = datetime.datetime.now().isoformat()
     data_store.setdefault(doctype, {})[record["name"]] = record
     return jsonify({"data": record}), 201
 
@@ -97,8 +100,10 @@ def update_resource(doctype, docname):
     if not record:
         abort(400, description="Kein JSON Payload übermittelt")
     record["name"] = docname
-    data_store[doctype][docname] = record
-    return jsonify({"data": record})
+    if "modified" not in record or record["modified"] == None:
+        record["modified"] = datetime.datetime.now().isoformat()
+    data_store[doctype][docname].update(record)
+    return jsonify({"data": data_store[doctype][docname]})
 
 
 @app.route("/api/resource/<doctype>/<docname>", methods=["DELETE"])
