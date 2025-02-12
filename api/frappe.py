@@ -1,5 +1,5 @@
 import logging
-from typing import Dict
+from typing import Dict, Literal
 
 import requests
 import json
@@ -8,12 +8,18 @@ from decimal import Decimal
 
 
 class FrappeAPI:
-    def __init__(self, auth_config: Dict[str, str], dry_run: bool):
+    def __init__(self, config: Dict[str, str], dry_run: bool):
         self.headers = {"Accept": "application/json"}
-        self._setup_auth(auth_config)
+        self.limit_page_length = config.get("limit_page_length", 20)
+        if not isinstance(self.limit_page_length, int) or self.limit_page_length < 1:
+            logging.warning(
+                "Frappe limit_page_length ist keine positive Ganzzahl. limit_page_length wird auf 20 gesetzt"
+            )
+            self.limit_page_length = 20
+        self._setup_auth(config)
         self.dry_run = dry_run
 
-    def _setup_auth(self, auth_config):
+    def _setup_auth(self, auth_config: Dict[str, str]):
         if "api_key" in auth_config and "api_secret" in auth_config:
             api_key = auth_config["api_key"]
             api_secret = auth_config["api_secret"]
@@ -23,7 +29,7 @@ class FrappeAPI:
                 "Keine Frappe API-Token in der Konfiguration gefunden. Es wird ohne Authentifizierung versucht."
             )
 
-    def send_data(self, method, endpoint, data):
+    def send_data(self, method: Literal["PUT", "POST"], endpoint: str, data):
         try:
             json_data = json.dumps(data, cls=CustomEncoder)
             if self.dry_run:
@@ -50,7 +56,7 @@ class FrappeAPI:
             logging.error(f"{json_data}")
             return None
 
-    def get_data(self, endpoint, params=None):
+    def get_data(self, endpoint: str, params=None):
         try:
             response = requests.get(endpoint, headers=self.headers, params=params)
             response.raise_for_status()
@@ -59,6 +65,20 @@ class FrappeAPI:
         except requests.exceptions.RequestException as e:
             logging.error(f"Fehler beim Abrufen der Daten von {endpoint}: {e}")
             return None
+
+    def get_all_data(self, endpoint: str, params=None):
+        separator = "&" if "?" in endpoint else "?"
+        limit_start = 0
+        data = []
+        while len(data) == limit_start:
+            endpoint = f"{endpoint}{separator}limit={self.limit_page_length}&limit_start={limit_start}"
+            res = self.get_data(endpoint, params)
+            if res:
+                more_data = res.get("data")
+                if isinstance(more_data, list):
+                    data = data + more_data
+            limit_start = limit_start + self.limit_page_length
+        return {"data": data}
 
 
 class CustomEncoder(json.JSONEncoder):

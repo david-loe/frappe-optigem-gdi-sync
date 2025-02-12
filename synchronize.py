@@ -5,6 +5,7 @@ from typing import Any, Dict
 
 import yaml
 from api.database import DatabaseConnection
+from sync.bidirectional import BidirectionalSyncTask
 from sync.db_to_frappe import DbToFrappeSyncTask
 from api.frappe import FrappeAPI
 from sync.frappe_to_db import FrappeToDbSyncTask
@@ -18,7 +19,7 @@ class SyncManager:
         if self.dry_run:
             logging.info("Sync läuft im Dry-Run Modus")
         self.db_conn = DatabaseConnection(config)
-        self.frappe_api = FrappeAPI(config.get("frappe_auth", {}), self.dry_run)
+        self.frappe_api = FrappeAPI(config.get("frappe", {}), self.dry_run)
         self.tasks = self._load_tasks()
 
     def _load_tasks(self):
@@ -35,6 +36,8 @@ class SyncManager:
             return DbToFrappeSyncTask(task_config, self.db_conn, self.frappe_api, self.dry_run)
         elif direction == "frappe_to_db":
             return FrappeToDbSyncTask(task_config, self.db_conn, self.frappe_api, self.dry_run)
+        elif direction == "bidirectional":
+            return BidirectionalSyncTask(task_config, self.db_conn, self.frappe_api, self.dry_run)
         else:
             raise ValueError(f"Unbekannte Synchronisationsrichtung: {direction}")
 
