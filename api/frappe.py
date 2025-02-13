@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Literal
+from typing import Literal
 
 import requests
 import json
@@ -73,6 +73,16 @@ class FrappeAPI:
                     data = data + more_data
             limit_start = limit_start + self.config.limit_page_length
         return {"data": data}
+
+    def delete(self, endpoint: str, doc_name: str):
+        try:
+            response = requests.delete(endpoint + "/" + doc_name, headers=self.headers)
+            response.raise_for_status()
+            logging.debug(f"{doc_name} erfolgreich gelöscht. ({endpoint})")
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Fehler beim Löschen von {doc_name} ({endpoint}): {e}")
+            return None
 
 
 class CustomEncoder(json.JSONEncoder):
