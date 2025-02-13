@@ -1,10 +1,10 @@
 import argparse
 import logging
 import sys
-from typing import Any, Dict
 
 import yaml
 from api.database import DatabaseConnection
+from config import Config, TaskConfig
 from sync.bidirectional import BidirectionalSyncTask
 from sync.db_to_frappe import DbToFrappeSyncTask
 from api.frappe import FrappeAPI
@@ -13,33 +13,28 @@ from sync.task import SyncTaskBase
 
 
 class SyncManager:
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Config):
         self.config = config
-        self.dry_run = config.get("dry_run")
-        if self.dry_run:
+        if config.dry_run:
             logging.info("Sync läuft im Dry-Run Modus")
-        self.db_conn = DatabaseConnection(config)
-        self.frappe_api = FrappeAPI(config.get("frappe", {}), self.dry_run)
-        self.tasks = self._load_tasks()
+        self.db_conn = DatabaseConnection(config.databases)
+        self.frappe_api = FrappeAPI(config.frappe, config.dry_run)
+        self.tasks = self._load_tasks(config.tasks)
 
-    def _load_tasks(self):
+    def _load_tasks(self, task_configs: list[TaskConfig]):
         tasks: list[SyncTaskBase] = []
-        for task_config in self.config.get("tasks", []):
+        for task_config in task_configs:
             task = self._create_sync_task(task_config)
             tasks.append(task)
         return tasks
 
-    def _create_sync_task(self, task_config: dict[str, Any]) -> SyncTaskBase:
-        """Erzeugt basierend auf der Konfiguration die passende Sync-Task-Instanz."""
-        direction = task_config.get("direction", "db_to_frappe")
-        if direction == "db_to_frappe":
-            return DbToFrappeSyncTask(task_config, self.db_conn, self.frappe_api, self.dry_run)
-        elif direction == "frappe_to_db":
-            return FrappeToDbSyncTask(task_config, self.db_conn, self.frappe_api, self.dry_run)
-        elif direction == "bidirectional":
-            return BidirectionalSyncTask(task_config, self.db_conn, self.frappe_api, self.dry_run)
-        else:
-            raise ValueError(f"Unbekannte Synchronisationsrichtung: {direction}")
+    def _create_sync_task(self, task_config: TaskConfig) -> SyncTaskBase:
+        if task_config.direction == "db_to_frappe":
+            return DbToFrappeSyncTask(task_config, self.db_conn, self.frappe_api, self.config.dry_run)
+        elif task_config.direction == "frappe_to_db":
+            return FrappeToDbSyncTask(task_config, self.db_conn, self.frappe_api, self.config.dry_run)
+        elif task_config.direction == "bidirectional":
+            return BidirectionalSyncTask(task_config, self.db_conn, self.frappe_api, self.config.dry_run)
 
     def run(self):
         for task in self.tasks:
@@ -72,13 +67,17 @@ def main():
     # YAML-Konfigurationsdatei laden
     try:
         with open(args.config, "r", encoding="utf-8") as file:
-            config = yaml.safe_load(file)
+            config_file = yaml.safe_load(file)
+            config_file["dry_run"] = args.dry_run or config_file.get("dry_run", False)
     except Exception as e:
         logger.error(f"Fehler beim Laden der Konfigurationsdatei {args.config}: {e}")
         sys.exit(1)
 
+    # Konfiguration validieren
+    config = Config(**config_file)
+
     # Dry-Run von den Argumenten setzen
-    config["dry_run"] = args.dry_run or config.get("dry_run", False)
+
     sync_manager = SyncManager(config)
     sync_manager.run()
 

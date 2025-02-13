@@ -1,23 +1,11 @@
 import logging
-from api.database import format_query
+from config import FrappeToDbTaskConfig
 from sync.task import SyncTaskBase
 
 
-class FrappeToDbSyncTask(SyncTaskBase):
-    name = "Frappe -> DB"
-
-    def validate_config(self):
-        required_fields = ["endpoint", "mapping", "db_name", "table_name"]
-        missing_fields = [field for field in required_fields if getattr(self, field, None) is None]
-        if missing_fields:
-            raise ValueError(
-                f"Fehlende erforderliche Konfigurationsfelder für 'frappe_to_db': {', '.join(missing_fields)}"
-            )
-        if not self.key_fields:
-            logging.warning("Keine 'key_fields' definiert. Es können keine Updates durchgeführt werden, nur Inserts.")
-
+class FrappeToDbSyncTask(SyncTaskBase[FrappeToDbTaskConfig]):
     def sync(self):
-        logging.info(f"Starte Ausführung von '{self.name}'.")
+        logging.info(f"Starte Ausführung von '{self.config.name}'.")
 
         # Daten von Frappe abrufen
         frappe_records = self.get_frappe_records()
@@ -31,7 +19,7 @@ class FrappeToDbSyncTask(SyncTaskBase):
 
             # Überprüfen, ob der Datensatz existiert
             where_clause = " AND ".join([f"{key} = ?" for key in key_values.keys()])
-            select_sql = f"SELECT COUNT(*) FROM {self.table_name} WHERE {where_clause}"
+            select_sql = f"SELECT COUNT(*) FROM {self.config.table_name} WHERE {where_clause}"
             params = list(key_values.values())
             exists = False
             with self.db_conn.cursor() as cursor:
@@ -47,7 +35,7 @@ class FrappeToDbSyncTask(SyncTaskBase):
     def get_key_values_from_data(self, data: dict):
         key_values = {}
         missing_keys = False
-        for key_field in self.key_fields:
+        for key_field in self.config.key_fields:
             if key_field in data:
                 key_values[key_field] = data[key_field]
             else:

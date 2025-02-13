@@ -1,37 +1,33 @@
-from numbers import Number
-from typing import Dict
 import fdb
 import pyodbc
 import logging
 import sys
 
+from config import DatabaseConfig, FirebirdDatabaseConfig, MssqlDatabaseConfig
+
 
 class DatabaseConnection:
-    def __init__(self, config: Dict):
-        self.connections: Dict[str, fdb.Connection | pyodbc.Connection] = {}
-        self._setup_connections(config)
+    def __init__(self, database_configs: dict[str, DatabaseConfig]):
+        self.connections: dict[str, fdb.Connection | pyodbc.Connection] = {}
+        self._setup_connections(database_configs)
 
-    def _setup_connections(self, config):
-        databases: Dict[str, Dict[str, str | Number]] = config.get("databases", {})
-        if databases:
-            for db_name, db_config in databases.items():
-                type = db_config.get("type")
-                if type == "firebase":
+    def _setup_connections(self, database_configs: dict[str, DatabaseConfig]):
+        if database_configs:
+            for db_name, db_config in database_configs.items():
+                if db_config.type == "firebird":
                     self.connections[db_name] = self._connect_firebird(db_name, db_config)
-                elif type == "mssql":
+                elif db_config.type == "mssql":
                     self.connections[db_name] = self._connect_mssql(db_name, db_config)
-                else:
-                    raise ValueError(f"Unbekannter Datenbanktyp von {db_name}: '{type}'")
 
-    def _connect_firebird(self, db_name: str, db_config: Dict[str, str | Number]):
+    def _connect_firebird(self, db_name: str, db_config: FirebirdDatabaseConfig):
         try:
             conn = fdb.connect(
-                host=db_config.get("host"),
-                port=db_config.get("port"),
-                database=db_config.get("database"),
-                user=db_config.get("user"),
-                password=db_config.get("password"),
-                charset="UTF8",
+                host=db_config.host,
+                port=db_config.port,
+                database=db_config.database,
+                user=db_config.user,
+                password=db_config.password,
+                charset=db_config.charset,
             )
             logging.info(f"Verbindung zur Firebird-Datenbank '{db_name}' hergestellt.")
             return conn
@@ -39,15 +35,15 @@ class DatabaseConnection:
             logging.error(f"Fehler bei der Verbindung zur Firebird-Datenbank '{db_name}': {e}")
             sys.exit(1)
 
-    def _connect_mssql(self, db_name: str, db_config: Dict[str, str | Number]):
+    def _connect_mssql(self, db_name: str, db_config: MssqlDatabaseConfig):
         try:
             mssql_conn_str = (
                 f"DRIVER={{ODBC Driver 18 for SQL Server}};"
-                f"SERVER={db_config.get('server')};"
-                f"DATABASE={db_config.get('database')};"
-                f"UID={db_config.get('user')};"
-                f"PWD={db_config.get('password')};"
-                f"TrustServerCertificate={'yes' if db_config.get('trust_server_certificate') else 'no'}"
+                f"SERVER={db_config.server};"
+                f"DATABASE={db_config.database};"
+                f"UID={db_config.user};"
+                f"PWD={db_config.password};"
+                f"TrustServerCertificate={'yes' if db_config.trust_server_certificate else 'no'}"
             )
             logging.info(f"Verbindung zur MSSQL-Datenbank '{db_name}' hergestellt.")
             return pyodbc.connect(mssql_conn_str)

@@ -6,28 +6,20 @@ import json
 from datetime import datetime, date
 from decimal import Decimal
 
+from config import FrappeAuthConfig, FrappeConfig
+
 
 class FrappeAPI:
-    def __init__(self, config: Dict[str, str], dry_run: bool):
+    def __init__(self, config: FrappeConfig, dry_run: bool):
+        self.config = config
         self.headers = {"Accept": "application/json"}
-        self.limit_page_length = config.get("limit_page_length", 20)
-        if not isinstance(self.limit_page_length, int) or self.limit_page_length < 1:
-            logging.warning(
-                "Frappe limit_page_length ist keine positive Ganzzahl. limit_page_length wird auf 20 gesetzt"
-            )
-            self.limit_page_length = 20
         self._setup_auth(config)
         self.dry_run = dry_run
 
-    def _setup_auth(self, auth_config: Dict[str, str]):
-        if "api_key" in auth_config and "api_secret" in auth_config:
-            api_key = auth_config["api_key"]
-            api_secret = auth_config["api_secret"]
-            self.headers["Authorization"] = f"token {api_key}:{api_secret}"
-        else:
-            logging.warning(
-                "Keine Frappe API-Token in der Konfiguration gefunden. Es wird ohne Authentifizierung versucht."
-            )
+    def _setup_auth(self, auth_config: FrappeAuthConfig):
+        api_key = auth_config.api_key
+        api_secret = auth_config.api_secret
+        self.headers["Authorization"] = f"token {api_key}:{api_secret}"
 
     def send_data(self, method: Literal["PUT", "POST"], endpoint: str, data):
         try:
@@ -72,14 +64,14 @@ class FrappeAPI:
         data = []
         while len(data) == limit_start:
             partial_endpoint = (
-                f'{endpoint}{separator}limit={self.limit_page_length}&limit_start={limit_start}&fields=["*"]'
+                f'{endpoint}{separator}limit={self.config.limit_page_length}&limit_start={limit_start}&fields=["*"]'
             )
             res = self.get_data(partial_endpoint, params)
             if res:
                 more_data = res.get("data")
                 if isinstance(more_data, list):
                     data = data + more_data
-            limit_start = limit_start + self.limit_page_length
+            limit_start = limit_start + self.config.limit_page_length
         return {"data": data}
 
 

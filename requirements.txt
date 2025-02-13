@@ -2,3 +2,4 @@ pyyaml
 requests
 fdb
 pyodbc
+pydantic
