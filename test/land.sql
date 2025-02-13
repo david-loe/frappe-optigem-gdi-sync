@@ -2,23 +2,34 @@
 -- Tabelle: Land anlegen und mit Testdaten befüllen
 -----------------------------------------------------------
 IF NOT EXISTS (
-    SELECT *
-    FROM sys.tables
-    WHERE name = 'Land'
-) BEGIN CREATE TABLE Land (
-    LandID INT IDENTITY(1, 1) PRIMARY KEY,
-    Name NVARCHAR(50) NOT NULL,
-    ISO_Code NVARCHAR(3) NOT NULL,
-    Hauptstadt NVARCHAR(50) NOT NULL
-);
+    SELECT
+        *
+    FROM
+        sys.tables
+    WHERE
+        name = 'Land'
+) BEGIN
+CREATE TABLE
+    Land (
+        LandID INT IDENTITY (1, 1) PRIMARY KEY,
+        Name NVARCHAR (50) NOT NULL,
+        ISO_Code NVARCHAR (3) NOT NULL,
+        Hauptstadt NVARCHAR (50) NOT NULL
+    );
+
 END;
+
 -- Testdaten in Land einfügen, falls die Tabelle leer ist
 IF NOT EXISTS (
-    SELECT TOP 1 1
-    FROM Land
+    SELECT
+        TOP 1 1
+    FROM
+        Land
 ) BEGIN
-INSERT INTO Land (Name, ISO_Code, Hauptstadt)
-VALUES ('Deutschland', 'DE', 'Berlin'),
+INSERT INTO
+    Land (Name, ISO_Code, Hauptstadt)
+VALUES
+    ('Deutschland', 'DE', 'Berlin'),
     ('Frankreich', 'FR', 'Paris'),
     ('Italien', 'IT', 'Rom'),
     ('Spanien', 'ES', 'Madrid'),
@@ -43,4 +54,5 @@ VALUES ('Deutschland', 'DE', 'Berlin'),
     ('Indien', 'IN', 'Neu-Delhi'),
     ('Brasilien', 'BR', 'Brasília'),
     ('USA', 'US', 'Washington, D.C.');
+
 END;

@@ -2,24 +2,35 @@
 -- Tabelle: Auto anlegen und mit Testdaten befüllen
 -----------------------------------------------------------
 IF NOT EXISTS (
-  SELECT *
-  FROM sys.tables
-  WHERE name = 'Auto'
-) BEGIN CREATE TABLE Auto (
-  AutoID INT IDENTITY(1, 1) PRIMARY KEY,
-  Marke NVARCHAR(50) NOT NULL,
-  Modell NVARCHAR(50) NOT NULL,
-  Baujahr INT NOT NULL,
-  Farbe NVARCHAR(20) NOT NULL
-);
+  SELECT
+    *
+  FROM
+    sys.tables
+  WHERE
+    name = 'Auto'
+) BEGIN
+CREATE TABLE
+  Auto (
+    AutoID INT IDENTITY (1, 1) PRIMARY KEY,
+    Marke NVARCHAR (50) NOT NULL,
+    Modell NVARCHAR (50) NOT NULL,
+    Baujahr INT NOT NULL,
+    Farbe NVARCHAR (20) NOT NULL
+  );
+
 END;
+
 -- Testdaten in Auto einfügen, falls die Tabelle leer ist
 IF NOT EXISTS (
-  SELECT TOP 1 1
-  FROM Auto
+  SELECT
+    TOP 1 1
+  FROM
+    Auto
 ) BEGIN
-INSERT INTO Auto (Marke, Modell, Baujahr, Farbe)
-VALUES ('BMW', '3er', 2018, 'Schwarz'),
+INSERT INTO
+  Auto (Marke, Modell, Baujahr, Farbe)
+VALUES
+  ('BMW', '3er', 2018, 'Schwarz'),
   ('Audi', 'A4', 2019, 'Weiß'),
   ('Mercedes', 'C-Klasse', 2020, 'Silber'),
   ('Volkswagen', 'Golf', 2017, 'Blau'),
@@ -44,4 +55,5 @@ VALUES ('BMW', '3er', 2018, 'Schwarz'),
   ('Jaguar', 'XE', 2018, 'Rot'),
   ('Infiniti', 'Q50', 2019, 'Silber'),
   ('Mitsubishi', 'Lancer', 2017, 'Grau');
+
 END;

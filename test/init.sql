@@ -1,2 +1,3 @@
 CREATE DATABASE TestDB;
+
 GO
