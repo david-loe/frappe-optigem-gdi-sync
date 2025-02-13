@@ -36,11 +36,18 @@ class FrappeConfig(FrappeAuthConfig):
 class TaskFrappeConfig(BaseModel):
     modified_field: str
     fk_id_field: str
+    id_field: Literal["name"] = "name"
+    datetime_fields: list[str] = []
+
+    def model_post_init(self, __context):
+        if self.modified_field not in self.datetime_fields:
+            self.datetime_fields.append(self.modified_field)
 
 
 class TaskDbConfig(BaseModel):
     modified_field: str
     fk_id_field: str
+    id_field: str
     fallback_modified_field: Optional[str] = None
 
 
@@ -52,8 +59,7 @@ class TaskBase(BaseModel):
     key_fields: list[str]
     table_name: Optional[str] = None
     query: Optional[str] = None
-    process_all: bool = False
-    create_new: bool = False
+    create_new: bool = True
 
     @model_validator(mode="after")
     def check_key_fields_in_mapping(self) -> "TaskBase":
@@ -71,11 +77,13 @@ class BidirectionalTaskConfig(TaskBase):
     table_name: str
     frappe: TaskFrappeConfig
     db: TaskDbConfig
+    delete: bool = True
 
 
 class DbToFrappeTaskConfig(TaskBase):
     direction: Literal["db_to_frappe"]
     name: str = "DB -> Frappe"
+    process_all: bool = True
 
     @model_validator(mode="after")
     def validate_table_or_query(self) -> "DbToFrappeTaskConfig":

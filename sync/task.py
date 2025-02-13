@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import datetime
 import logging
 from typing import TypeVar, Generic
 from api.database import DatabaseConnection, format_query
@@ -25,6 +26,10 @@ class SyncTaskBase(Generic[T], ABC):
             logging.info(f"DRY_RUN: {self.config.db_name}\n{format_query(sql, params)}")
             return
         try:
+            logging.debug(
+                f"""Anfrage an {self.config.db_name}
+                    {format_query(sql, params)}"""
+            )
             with self.db_conn.cursor() as cursor:
                 cursor.execute(sql, params)
             self.db_conn.commit()
@@ -33,6 +38,20 @@ class SyncTaskBase(Generic[T], ABC):
             logging.error(f"Fehler bei der Ausführung von SQL: {e}")
             self.db_conn.rollback()
 
+    def _execute_select_query(self, sql: str, params: list = []):
+        db_records: list[dict[str, any]] = []
+        with self.db_conn.cursor() as cursor:
+            logging.debug(
+                f"""Anfrage an {self.config.db_name}
+                    {format_query(sql, params)}"""
+            )
+            cursor.execute(sql, params)
+            db_columns = [desc[0] for desc in cursor.description]
+            for row in cursor.fetchall():
+                rec = dict(zip(db_columns, row))
+                db_records.append(rec)
+        return db_records
+
     def map_frappe_to_db(self, record: dict, warns=True) -> dict:
         """
         Übersetzt einen Frappe-Datensatz in ein DB-Datenformat anhand des Mapping.
@@ -40,7 +59,9 @@ class SyncTaskBase(Generic[T], ABC):
         db_data = {}
         for frappe_field, db_column in self.config.mapping.items():
             if frappe_field in record:
-                db_data[db_column] = record[frappe_field]
+                value = record[frappe_field]
+                if value is not None:
+                    db_data[db_column] = value
             elif warns:
                 logging.warning(f"Feld '{frappe_field}' fehlt im Frappe-Datensatz {record}.")
         return db_data
@@ -52,7 +73,9 @@ class SyncTaskBase(Generic[T], ABC):
         frappe_data = {}
         for frappe_field, db_column in self.config.mapping.items():
             if db_column in record:
-                frappe_data[frappe_field] = record[db_column]
+                value = record[db_column]
+                if value is not None:
+                    frappe_data[frappe_field] = value
             elif warns:
                 logging.warning(f"Spalte '{db_column}' fehlt im DB-Datensatz {record}.")
         return frappe_data
@@ -72,7 +95,16 @@ class SyncTaskBase(Generic[T], ABC):
         Frappe-Datensätze abrufen
         """
         frappe_response = self.frappe_api.get_all_data(self.config.endpoint)
-        return frappe_response.get("data", [])
+        records = frappe_response.get("data", [])
+        for rec in records:
+            for field in self.config.frappe.datetime_fields:
+                if field in rec and isinstance(rec[field], str):
+                    try:
+                        rec[field] = datetime.datetime.fromisoformat(rec[field])
+                    except ValueError:
+                        # Falls der String kein gültiges ISO-Datum ist, bleibt der Wert unverändert.
+                        pass
+        return records
 
     def get_frappe_key_record_dict(self):
         frappe_records = self.get_frappe_records()
@@ -86,21 +118,10 @@ class SyncTaskBase(Generic[T], ABC):
         """
         DB-Datensätze abrufen
         """
-        db_records = []
-        with self.db_conn.cursor() as cursor:
-            select_sql = f"SELECT * FROM {self.config.table_name}"
-            if self.config.query:
-                select_sql = self.config.query
-            logging.debug(
-                f"""Anfrage an {self.config.db_name}
-                    {select_sql}"""
-            )
-            cursor.execute(select_sql)
-            db_columns = [desc[0] for desc in cursor.description]
-            for row in cursor.fetchall():
-                rec = dict(zip(db_columns, row))
-                db_records.append(rec)
-        return db_records
+        select_sql = f"SELECT * FROM {self.config.table_name}"
+        if self.config.query:
+            select_sql = self.config.query
+        return self._execute_select_query(select_sql)
 
     def get_db_key_record_dict(self):
         db_records = self.get_db_records()
@@ -129,8 +150,9 @@ class SyncTaskBase(Generic[T], ABC):
         """
         Fügt einen neuen Datensatz in Frappe ein, basierend auf den Daten aus der DB.
         """
-        frappe_data = self.map_db_to_frappe(db_rec)
-        return self.frappe_api.send_data("POST", self.config.endpoint, frappe_data).get("data")
+        if self.config.create_new:
+            frappe_data = self.map_db_to_frappe(db_rec)
+            return self.frappe_api.send_data("POST", self.config.endpoint, frappe_data).get("data")
 
     def update_frappe_record(self, db_rec: dict, frappe_doc_name: str):
         """
@@ -155,21 +177,37 @@ class SyncTaskBase(Generic[T], ABC):
         params = list(db_data.values()) + list(db_keys.values())
         self.execute_query(sql, params, f"DB-Datensatz wurde aktualisiert.")
 
+        sql_select = f"SELECT * FROM {self.config.table_name} WHERE {where_clause}"
+        results = self._execute_select_query(sql_select, list(db_keys.values()))
+        if len(results) == 0:
+            logging.warning(f"DB-Datensatz konnte nach UPDATE nicht gefunden werden: {db_keys}")
+            return None
+        elif len(results) == 1:
+            return results[0]
+        else:
+            logging.warning(f"Nach UPDATE konnten mehrere DB-Datensätze gefunden werden: {db_keys}")
+            return results[0]
+
     def insert_frappe_record_to_db(self, frappe_rec: dict):
         """
         Fügt einen neuen Datensatz in die DB ein, basierend auf den Daten aus Frappe.
         """
-        db_data = self.map_frappe_to_db(frappe_rec)
-        columns = ", ".join(db_data.keys())
-        placeholders = ", ".join(["?"] * len(db_data))
-        sql = f"INSERT INTO {self.config.table_name} ({columns}) VALUES ({placeholders})"
-        params = list(db_data.values())
-        self.execute_query(sql, params, f"Neuer DB-Datensatz wurde eingefügt.")
+        if self.config.create_new:
+            db_data = self.map_frappe_to_db(frappe_rec)
+            columns = ", ".join(db_data.keys())
+            placeholders = ", ".join(["?"] * len(db_data))
+            sql = f"INSERT INTO {self.config.table_name} ({columns}) VALUES ({placeholders})"
+            params = list(db_data.values())
+            self.execute_query(sql, params, f"Neuer DB-Datensatz wurde eingefügt.")
 
-    def update_db_foreign_id(self, db_rec: dict, foreign_id: str):
-        set_clause = f"{self.config.db.fk_id_field} = ?"
-        db_id_column = self.config.mapping.get(self.config.frappe.fk_id_field)
-        where_clause = f"{db_id_column} = ?"
-        sql = f"UPDATE {self.config.table_name} SET {set_clause} WHERE {where_clause}"
-        params = [foreign_id, db_rec.get(db_id_column)]
-        self.execute_query(sql, params, f"DB-Datensatz wurde aktualisiert.")
+            where_clause = " AND ".join([f"{k} = ?" for k in db_data.keys()])
+            sql_select = f"SELECT * FROM {self.config.table_name} WHERE {where_clause}"
+            results = self._execute_select_query(sql_select, list(db_data.values()))
+            if len(results) == 0:
+                logging.warning(f"DB-Datensatz konnte nach UPDATE nicht gefunden werden: {db_data}")
+                return None
+            elif len(results) == 1:
+                return results[0]
+            else:
+                logging.warning(f"Nach UPDATE konnten mehrere DB-Datensätze gefunden werden: {db_data}")
+                return results[0]

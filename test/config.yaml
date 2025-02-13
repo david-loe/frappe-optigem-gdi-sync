@@ -12,7 +12,7 @@ frappe:
   api_secret: your_api_secret
 
 tasks:
-  - endpoint: http://frappe:5000/api/resource/Contact
+  - endpoint: http://frappe:5050/api/resource/Contact
     db_name: test_db
     table_name: Contact
     mapping:
@@ -27,10 +27,12 @@ tasks:
     key_fields:
       - db_id
       - name
+
     frappe:
-      modified_field: modified_on
+      modified_field: modified
       fk_id_field: db_id
     db:
       modified_field: Änderung
       fk_id_field: fk
+      id_field: ContactID
       fallback_modified_field: Anlage

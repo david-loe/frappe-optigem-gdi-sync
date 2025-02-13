@@ -23,7 +23,7 @@ services:
   frappe:
     build: ./frappe_api
     ports:
-      - "5000:5000"
+      - "5050:5050"
     environment:
       # Falls Deine Test-Frappe-App Umgebungsvariablen benötigt, hier definieren
       FLASK_ENV: development

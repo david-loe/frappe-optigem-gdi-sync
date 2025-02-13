@@ -25,9 +25,9 @@ class DbToFrappeSyncTask(SyncTaskBase[DbToFrappeTaskConfig]):
                             self.update_frappe_record(record, doc["name"])
                     else:
                         self.update_frappe_record(record, existing_docs["data"][0]["name"])
-                elif self.create_new:
+                else:
                     self.insert_db_record_to_frappe(record)
-            elif self.create_new:
+            else:
                 self.insert_db_record_to_frappe(record)
 
     def get_filters_from_data(self, data: dict):
