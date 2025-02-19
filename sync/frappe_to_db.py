@@ -5,11 +5,9 @@ from sync.task import SyncTaskBase
 
 
 class FrappeToDbSyncTask(SyncTaskBase[FrappeToDbTaskConfig]):
-    def sync(self, last_sync_date: datetime):
-        logging.info(f"Starte Ausführung von '{self.config.name}'.")
-
+    def sync(self, last_sync_date: datetime | None = None):
         # Daten von Frappe abrufen
-        frappe_records = self.get_frappe_records()
+        frappe_records = self.get_frappe_records(last_sync_date)
 
         for frappe_rec in frappe_records:
             data, key_values = self.split_frappe_in_data_and_keys(frappe_rec)

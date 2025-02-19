@@ -1,4 +1,7 @@
 import argparse
+from datetime import datetime
+import hashlib
+import json
 import logging
 import sys
 
@@ -10,6 +13,7 @@ from sync.db_to_frappe import DbToFrappeSyncTask
 from api.frappe import FrappeAPI
 from sync.frappe_to_db import FrappeToDbSyncTask
 from sync.task import SyncTaskBase
+from utils.yaml_database import YamlDatabase
 
 
 class SyncManager:
@@ -20,6 +24,7 @@ class SyncManager:
         self.db_conn = DatabaseConnection(config.databases)
         self.frappe_api = FrappeAPI(config.frappe, config.dry_run)
         self.tasks = self._load_tasks(config.tasks)
+        self.timestamp_db = YamlDatabase(config.timestamp_file)
 
     def _load_tasks(self, task_configs: list[TaskConfig]):
         tasks: list[SyncTaskBase] = []
@@ -38,8 +43,39 @@ class SyncManager:
 
     def run(self):
         for task in self.tasks:
-            task.sync()
+            last_sync_date = self.get_last_sync_date(task.config)
+            logging.info(f"Starte Sync Task '{task.config.name}' ab {last_sync_date}")
+            task.sync(last_sync_date)
+            self.save_sync_date(task.config, datetime.now())
         self.db_conn.close_connections()
+
+    def get_last_sync_date(self, task_config: TaskConfig) -> dict[str, datetime]:
+        hash = self._gen_task_hash(task_config)
+        entries = self.timestamp_db.get("timestamps")
+        if entries:
+            print(entries)
+            for task_name, entry in entries.items():
+                if entry["hash"] == hash:
+                    return datetime.fromisoformat(entry["last_sync_date"])
+        return None
+
+    def save_sync_date(self, task_config: TaskConfig, date: datetime):
+        new_entry = {"hash": self._gen_task_hash(task_config), "last_sync_date": date.isoformat()}
+        entries = self.timestamp_db.get("timestamps")
+        if not entries:
+            entries = {}
+
+        for task_name, entry in entries.items():
+            if entry["hash"] == hash:
+                entries.pop(task_name)
+
+        entries[task_config.name] = new_entry
+        self.timestamp_db.insert("timestamps", entries)
+
+    def _gen_task_hash(self, task_config: TaskConfig):
+        task_dict = task_config.model_dump(exclude={"name"})
+        json_data = json.dumps(task_dict, sort_keys=True).encode("utf-8")
+        return hashlib.sha256(json_data).hexdigest()
 
 
 def main():

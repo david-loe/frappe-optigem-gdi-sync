@@ -7,11 +7,9 @@ from sync.task import SyncTaskBase
 
 
 class BidirectionalSyncTask(SyncTaskBase[BidirectionalTaskConfig]):
-    def sync(self, last_sync_date: datetime):
-        logging.info(f"Starte bidirektionalen Sync: {self.config.name}")
-
-        frappe_dict = self.get_frappe_key_record_dict()
-        db_dict = self.get_db_key_record_dict()
+    def sync(self, last_sync_date: datetime | None = None):
+        frappe_dict = self.get_frappe_key_record_dict(last_sync_date)
+        db_dict = self.get_db_key_record_dict(last_sync_date)
 
         # Alle vorhandenen Schlüssel zusammenführen
         all_keys = set(frappe_dict.keys()).union(db_dict.keys())
@@ -56,7 +54,7 @@ class BidirectionalSyncTask(SyncTaskBase[BidirectionalTaskConfig]):
                     if created_frappe_doc and created_frappe_doc.get(self.config.frappe.id_field):
                         self.update_db_foreign_id(db_rec, created_frappe_doc[self.config.frappe.id_field])
 
-    def get_modified_timestamp(self, record: dict, source: Literal["frappe", "db"]) -> datetime:
+    def get_modified_timestamp(self, record: dict, source: Literal["frappe", "db"]) -> datetime | None:
         ts_str = None
         if source == "frappe":
             ts_str = record.get(self.config.frappe.modified_field)

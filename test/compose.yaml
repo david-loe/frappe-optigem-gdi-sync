@@ -5,6 +5,7 @@ services:
     build: ..
     volumes:
       - ./config.yaml:/config.yaml:ro
+      - ./timestamps.yaml:/usr/src/app/timestamps.yaml
     command: --config /config.yaml --loglevel debug
     env_file:
       - ../.env

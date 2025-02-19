@@ -17,7 +17,7 @@ class SyncTaskBase(Generic[T], ABC):
         self.db_conn = db_conn.get_connection(self.config.db_name)
 
     @abstractmethod
-    def sync(self, last_sync_date: datetime):
+    def sync(self, last_sync_date: datetime | None = None):
         """Führt die Synchronisation aus."""
         pass
 
@@ -90,11 +90,14 @@ class SyncTaskBase(Generic[T], ABC):
                 data[k] = v
         return data, keys
 
-    def get_frappe_records(self) -> list:
+    def get_frappe_records(self, last_sync_date: datetime | None = None) -> list:
         """
         Frappe-Datensätze abrufen
         """
-        frappe_response = self.frappe_api.get_all_data(self.config.endpoint)
+        filters = []
+        if last_sync_date:
+            filters.append(f'["modified", ">=", "{last_sync_date.isoformat()}"]')
+        frappe_response = self.frappe_api.get_all_data(self.config.endpoint, filters)
         records = frappe_response.get("data", [])
         for rec in records:
             for field in self.config.frappe.datetime_fields:
@@ -106,25 +109,37 @@ class SyncTaskBase(Generic[T], ABC):
                         pass
         return records
 
-    def get_frappe_key_record_dict(self):
-        frappe_records = self.get_frappe_records()
+    def get_frappe_key_record_dict(self, last_sync_date: datetime | None = None):
+        frappe_records = self.get_frappe_records(last_sync_date)
         frappe_dict: dict[tuple, dict[str, any]] = {}
         for rec in frappe_records:
             key = self.extract_key_from_frappe(rec)
             frappe_dict[key] = rec
         return frappe_dict
 
-    def get_db_records(self):
+    def get_db_records(self, last_sync_date: datetime | None = None):
         """
         DB-Datensätze abrufen
         """
         select_sql = f"SELECT * FROM {self.config.table_name}"
+        params = []
+        if last_sync_date:
+            params = [last_sync_date]
+            select_sql = select_sql + f" WHERE {self.config.db.modified_field} >= ?"
+            if self.config.db.fallback_modified_field:
+                params.append(last_sync_date)
+                select_sql = select_sql + f" OR {self.config.db.fallback_modified_field} >= ?"
+
         if self.config.query:
             select_sql = self.config.query
-        return self._execute_select_query(select_sql)
+            if last_sync_date:
+                select_sql = self.config.query_with_timestamp
+                params = [last_sync_date] * self.config.query_with_timestamp.count("?")
 
-    def get_db_key_record_dict(self):
-        db_records = self.get_db_records()
+        return self._execute_select_query(select_sql, params)
+
+    def get_db_key_record_dict(self, last_sync_date: datetime | None = None):
+        db_records = self.get_db_records(last_sync_date)
         db_dict: dict[tuple, dict[str, any]] = {}
         for rec in db_records:
             key = self.extract_key_from_db(rec)

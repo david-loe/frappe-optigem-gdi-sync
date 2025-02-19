@@ -33,9 +33,8 @@ class FrappeConfig(FrappeAuthConfig):
     limit_page_length: int = 20
 
 
-class TaskFrappeConfig(BaseModel):
+class TaskFrappeBase(BaseModel):
     modified_field: str
-    fk_id_field: str
     id_field: Literal["name"] = "name"
     datetime_fields: list[str] = []
 
@@ -44,22 +43,33 @@ class TaskFrappeConfig(BaseModel):
             self.datetime_fields.append(self.modified_field)
 
 
-class TaskDbConfig(BaseModel):
-    modified_field: str
+class TaskFrappeBidirectional(TaskFrappeBase):
     fk_id_field: str
-    id_field: str
+
+
+class TaskDbBase(BaseModel):
+    modified_field: str
     fallback_modified_field: Optional[str] = None
 
 
+class TaskDbBidirectional(TaskDbBase):
+    fk_id_field: str
+    id_field: str
+
+
 class TaskBase(BaseModel):
-    name: Optional[str] = None
     endpoint: str
     db_name: str
     mapping: dict[str, str]
     key_fields: list[str]
+    frappe: Optional[TaskFrappeBase] = None
+    db: Optional[TaskDbBase] = None
+    name: Optional[str] = None
     table_name: Optional[str] = None
     query: Optional[str] = None
+    query_with_timestamp: Optional[str] = None
     create_new: bool = True
+    use_last_sync_date: bool = True
 
     @model_validator(mode="after")
     def check_key_fields_in_mapping(self) -> "TaskBase":
@@ -70,13 +80,28 @@ class TaskBase(BaseModel):
             raise ValueError(f"Die folgenden key_fields fehlen im mapping: {missing_keys}")
         return self
 
+    @model_validator(mode="after")
+    def check_required_fields(self) -> "TaskBase":
+        if self.use_last_sync_date:
+            if self.frappe is None:
+                raise ValueError(
+                    "Die Frappe-Konfiguration 'frappe' muss angegeben werden, wenn 'use_last_sync_date' True ist."
+                )
+            if self.db is None:
+                raise ValueError("Die DB-Konfiguration 'db' muss angegeben werden, wenn 'use_last_sync_date' True ist.")
+            if self.query is not None and self.query_with_timestamp is None:
+                raise ValueError(
+                    "'query_with_timestamp' muss angegeben werden, wenn 'use_last_sync_date' True ist und 'query' genutzt wird."
+                )
+        return self
+
 
 class BidirectionalTaskConfig(TaskBase):
     direction: Literal["bidirectional"]
-    name: str = "Bidirectional Sync"
     table_name: str
-    frappe: TaskFrappeConfig
-    db: TaskDbConfig
+    frappe: TaskFrappeBidirectional
+    db: TaskDbBidirectional
+    name: str = "Bidirectional Sync"
     delete: bool = True
 
 
@@ -94,8 +119,8 @@ class DbToFrappeTaskConfig(TaskBase):
 
 class FrappeToDbTaskConfig(TaskBase):
     direction: Literal["frappe_to_db"]
-    name: str = "Frappe -> DB"
     table_name: str
+    name: str = "Frappe -> DB"
 
 
 TaskConfig = Annotated[
@@ -105,6 +130,7 @@ TaskConfig = Annotated[
 
 class Config(BaseModel):
     dry_run: bool = False
+    timestamp_file: str = "timestamps.yaml"
     databases: dict[str, DatabaseConfig]
     frappe: FrappeConfig
     tasks: list[TaskConfig]

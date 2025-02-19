@@ -6,6 +6,8 @@ import json
 from datetime import datetime, date
 from decimal import Decimal
 
+import urllib
+
 from config import FrappeAuthConfig, FrappeConfig
 
 
@@ -48,25 +50,28 @@ class FrappeAPI:
             logging.error(f"{json_data}")
             return None
 
-    def get_data(self, endpoint: str, params=None):
+    def get_data(self, endpoint: str, filters: list[str] = [], params: dict | None = None):
+        params = params.copy() if params else {}
+        if len(filters) > 0:
+            params["filters"] = f"[{','.join(filters)}]"
         try:
             response = requests.get(endpoint, headers=self.headers, params=params)
             response.raise_for_status()
-            logging.debug(f"Daten erfolgreich von {endpoint} abgerufen.")
+            logging.debug(f"Daten erfolgreich von {endpoint} ({params}) abgerufen.")
             return response.json()
         except requests.exceptions.RequestException as e:
-            logging.error(f"Fehler beim Abrufen der Daten von {endpoint}: {e}")
+            logging.error(f"Fehler beim Abrufen der Daten von {endpoint} ({params}): {e}")
             return None
 
-    def get_all_data(self, endpoint: str, params=None):
-        separator = "&" if "?" in endpoint else "?"
+    def get_all_data(self, endpoint: str, filters: list[str] = [], params: dict | None = None):
         limit_start = 0
         data = []
         while len(data) == limit_start:
-            partial_endpoint = (
-                f'{endpoint}{separator}limit={self.config.limit_page_length}&limit_start={limit_start}&fields=["*"]'
-            )
-            res = self.get_data(partial_endpoint, params)
+            params = params.copy() if params else {}
+            params["limit"] = self.config.limit_page_length
+            params["limit_start"] = limit_start
+            params["fields"] = '["*"]'
+            res = self.get_data(endpoint, filters, params)
             if res:
                 more_data = res.get("data")
                 if isinstance(more_data, list):

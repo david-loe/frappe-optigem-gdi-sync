@@ -17,11 +17,14 @@ def get_resource(doctype):
                 Falls fields=["*"] übergeben wird, werden alle Felder zurückgegeben.
       - limit_start: Startindex (default: 0)
       - limit_page_length: Anzahl Datensätze pro Seite (default: 20)
+      - filters: JSON-kodierte Liste von Filterbedingungen
+                 (z.B. ?filters=[["modified", ">=", "2025-02-18T13:40:26.160Z"]])
 
     Ohne den Parameter "fields" werden nur das "name"-Feld der Datensätze zurückgegeben.
     """
     # Parameter aus der URL abrufen
     fields_param = request.args.get("fields")
+    filters_param = request.args.get("filters")
 
     try:
         limit_start = int(request.args.get("limit_start", 0))
@@ -36,10 +39,54 @@ def get_resource(doctype):
     # Alle Datensätze für den angefragten doctype abrufen
     records = list(data_store.get(doctype, {}).values())
 
-    # Paginierung anwenden
+    # Filter anwenden, falls der "filters"-Parameter angegeben wurde
+    if filters_param:
+        try:
+            filters = json.loads(filters_param)
+            if not isinstance(filters, list):
+                raise ValueError("Filters müssen eine Liste sein")
+            # Sicherstellen, dass jede Filterbedingung eine Liste mit genau drei Elementen ist
+            for condition in filters:
+                if not (isinstance(condition, list) and len(condition) == 3):
+                    abort(
+                        400,
+                        description="Ungültiger 'filters'-Parameter. Erwartet wird eine JSON-kodierte Liste von Listen mit drei Elementen.",
+                    )
+        except ValueError:
+            abort(400, description="Ungültiger 'filters'-Parameter. Erwartet wird eine JSON-kodierte Liste.")
+
+        def record_matches(record, condition):
+            field, operator, value = condition
+            rec_val = record.get(field)
+
+            if isinstance(value, str):
+                try:
+                    value = datetime.fromisoformat(value.replace("Z", ""))
+                except ValueError:
+                    pass
+
+            if operator in ("=", "=="):
+                return rec_val == value
+            elif operator == "!=":
+                return rec_val != value
+            elif operator == ">":
+                return rec_val > value
+            elif operator == "<":
+                return rec_val < value
+            elif operator == ">=":
+                return rec_val >= value
+            elif operator == "<=":
+                return rec_val <= value
+            else:
+                abort(400, description=f"Ungültiger Operator: {operator}")
+
+        # Filtere Datensätze, die alle Filterbedingungen erfüllen
+        records = [rec for rec in records if all(record_matches(rec, cond) for cond in filters)]
+
+    # Paginierung anwenden (nach der Filterung)
     records = records[limit_start : limit_start + limit_page_length]
 
-    # Falls ein "fields"-Parameter angegeben wurde, selektiere nur diese Felder
+    # Feldauswahl basierend auf dem 'fields'-Parameter
     if fields_param:
         try:
             fields = json.loads(fields_param)
@@ -49,7 +96,6 @@ def get_resource(doctype):
             abort(400, description="Ungültiger 'fields'-Parameter. Erwartet wird eine JSON-kodierte Liste.")
 
         if fields == ["*"]:
-            # Alle Felder werden zurückgegeben
             filtered_records = records
         else:
             filtered_records = []
