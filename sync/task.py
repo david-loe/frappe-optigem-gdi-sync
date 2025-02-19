@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-import datetime
+from datetime import datetime
 import logging
 from typing import TypeVar, Generic
 from api.database import DatabaseConnection, format_query
@@ -17,7 +17,7 @@ class SyncTaskBase(Generic[T], ABC):
         self.db_conn = db_conn.get_connection(self.config.db_name)
 
     @abstractmethod
-    def sync(self):
+    def sync(self, last_sync_date: datetime):
         """Führt die Synchronisation aus."""
         pass
 
@@ -100,7 +100,7 @@ class SyncTaskBase(Generic[T], ABC):
             for field in self.config.frappe.datetime_fields:
                 if field in rec and isinstance(rec[field], str):
                     try:
-                        rec[field] = datetime.datetime.fromisoformat(rec[field])
+                        rec[field] = datetime.fromisoformat(rec[field])
                     except ValueError:
                         # Falls der String kein gültiges ISO-Datum ist, bleibt der Wert unverändert.
                         pass

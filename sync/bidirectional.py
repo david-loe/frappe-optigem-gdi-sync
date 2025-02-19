@@ -7,7 +7,7 @@ from sync.task import SyncTaskBase
 
 
 class BidirectionalSyncTask(SyncTaskBase[BidirectionalTaskConfig]):
-    def sync(self):
+    def sync(self, last_sync_date: datetime):
         logging.info(f"Starte bidirektionalen Sync: {self.config.name}")
 
         frappe_dict = self.get_frappe_key_record_dict()

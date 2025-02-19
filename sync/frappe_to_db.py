@@ -1,10 +1,11 @@
+from datetime import datetime
 import logging
 from config import FrappeToDbTaskConfig
 from sync.task import SyncTaskBase
 
 
 class FrappeToDbSyncTask(SyncTaskBase[FrappeToDbTaskConfig]):
-    def sync(self):
+    def sync(self, last_sync_date: datetime):
         logging.info(f"Starte Ausführung von '{self.config.name}'.")
 
         # Daten von Frappe abrufen

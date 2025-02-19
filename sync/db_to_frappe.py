@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 
 import urllib
@@ -6,7 +7,7 @@ from sync.task import SyncTaskBase
 
 
 class DbToFrappeSyncTask(SyncTaskBase[DbToFrappeTaskConfig]):
-    def sync(self):
+    def sync(self, last_sync_date: datetime):
         logging.info(f"Starte Ausführung von '{self.config.name}'.")
         db_records = self.get_db_records()
 
