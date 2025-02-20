@@ -14,7 +14,7 @@ class DbToFrappeSyncTask(SyncTaskBase[DbToFrappeTaskConfig]):
             filters = self.get_filters_from_data(data)
             if filters:
                 # Suche nach existierendem Dokument
-                existing_docs = self.frappe_api.get_data(self.config.endpoint, filters)
+                existing_docs = self.frappe_api.get_data(self.config.doc_type, filters=filters)
                 if existing_docs and existing_docs.get("data"):
                     # Dokument(e) existieren
                     if self.config.process_all:

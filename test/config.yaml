@@ -10,9 +10,10 @@ databases:
 frappe:
   api_key: your_api_key
   api_secret: your_api_secret
+  url: http://frappe:5050/
 
 tasks:
-  - endpoint: http://frappe:5050/api/resource/Contact
+  - doc_type: Contact
     db_name: test_db
     table_name: Contact
     mapping:

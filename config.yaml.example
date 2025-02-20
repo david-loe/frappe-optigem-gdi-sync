@@ -33,7 +33,7 @@ tasks:
   # --- Bidirectional Sync ---
   - direction: bidirectional # Task-Richtung: bidirectional
     name: "Bidirectional Sync" # Name der Task (Standardwert ist "Bidirectional Sync")
-    endpoint: "https://your.frappe.url/api/resource/SomeDocType" # API-Endpunkt in Frappe
+    doc_type: "https://your.frappe.url/api/resource/Somedoc_type" # API-Endpunkt in Frappe
     db_name: "mssql_db" # Verweis auf eine der in 'databases' definierten Datenbanken
     mapping: # Feld-Mapping: Schlüssel entspricht dem Frappe-Feld, Wert dem DB-Feld
       id: "ID"
@@ -56,7 +56,7 @@ tasks:
   # --- DB -> Frappe Task ---
   - direction: db_to_frappe # Task-Richtung: db_to_frappe
     name: "DB -> Frappe"
-    endpoint: "https://your.frappe.url/api/resource/OtherDocType"
+    doc_type: "https://your.frappe.url/api/resource/Otherdoc_type"
     db_name: "firebird_db"
     mapping:
       id: "ID"
@@ -72,7 +72,7 @@ tasks:
   # --- Frappe -> DB Task ---
   - direction: frappe_to_db # Task-Richtung: frappe_to_db
     name: "Frappe -> DB"
-    endpoint: "https://your.frappe.url/api/resource/AnotherDocType"
+    doc_type: "https://your.frappe.url/api/resource/Anotherdoc_type"
     db_name: "mssql_db"
     mapping:
       id: "ID"

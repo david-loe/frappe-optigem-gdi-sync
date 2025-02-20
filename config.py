@@ -31,6 +31,7 @@ class FrappeAuthConfig(BaseModel):
 
 class FrappeConfig(FrappeAuthConfig):
     limit_page_length: int = 20
+    url: str  # without trailing slash
 
 
 class TaskFrappeBase(BaseModel):
@@ -58,7 +59,7 @@ class TaskDbBidirectional(TaskDbBase):
 
 
 class TaskBase(BaseModel):
-    endpoint: str
+    doc_type: str
     db_name: str
     mapping: dict[str, str]
     key_fields: list[str]

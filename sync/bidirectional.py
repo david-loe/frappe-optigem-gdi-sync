@@ -84,12 +84,13 @@ class BidirectionalSyncTask(SyncTaskBase[BidirectionalTaskConfig]):
     def update_frappe_foreign_id(self, frappe_rec: dict, foreign_id: str):
         data = {}
         data[self.config.frappe.id_field] = foreign_id
-        endpoint = f"{self.config.endpoint}/{frappe_rec.get(self.config.frappe.id_field)}"
-        return self.frappe_api.send_data("PUT", endpoint, data).get("data")
+        return self.frappe_api.update_data(self.config.doc_type, frappe_rec.get(self.config.frappe.id_field), data).get(
+            "data"
+        )
 
     def delete_frappe_record(self, frappe_rec: dict):
         if self.config.delete:
-            self.frappe_api.delete(self.config.endpoint, frappe_rec[self.config.frappe.id_field])
+            self.frappe_api.delete(self.config.doc_type, frappe_rec[self.config.frappe.id_field])
 
     def delete_db_record(self, db_rec: dict):
         if self.config.delete:

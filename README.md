@@ -96,7 +96,7 @@ Hier werden die Synchronisationsaufgaben definiert. Jede Task konfiguriert den D
   _Typ_: String  
   _Beschreibung_: Bezeichner der Task. Manche Typen haben einen Standardwert.
 
-- **endpoint**:  
+- **doc_type**:  
   _Typ_: String  
   _Beschreibung_: API-Endpunkt in Frappe, der angesprochen wird.
 

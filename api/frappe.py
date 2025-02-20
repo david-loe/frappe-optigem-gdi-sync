@@ -6,8 +6,6 @@ import json
 from datetime import datetime, date
 from decimal import Decimal
 
-import urllib
-
 from config import FrappeAuthConfig, FrappeConfig
 
 
@@ -23,7 +21,7 @@ class FrappeAPI:
         api_secret = auth_config.api_secret
         self.headers["Authorization"] = f"token {api_key}:{api_secret}"
 
-    def send_data(self, method: Literal["PUT", "POST"], endpoint: str, data):
+    def _send_data(self, method: Literal["PUT", "POST"], endpoint: str, data):
         try:
             json_data = json.dumps(data, cls=CustomEncoder)
             if self.dry_run:
@@ -31,7 +29,7 @@ class FrappeAPI:
                     f"""DRY_RUN: {method} {endpoint}
                         {json_data}"""
                 )
-                return None
+                return {"data": {}}
             headers = self.headers.copy()
             headers["Content-Type"] = "application/json"
             if method == "POST":
@@ -50,7 +48,14 @@ class FrappeAPI:
             logging.error(f"{json_data}")
             return None
 
-    def get_data(self, endpoint: str, filters: list[str] = [], params: dict | None = None):
+    def insert_data(self, doc_type: str, data):
+        return self._send_data("POST", self.get_endpoint(doc_type), data)
+
+    def update_data(self, doc_type: str, doc_name: str, data):
+        return self._send_data("PUT", self.get_endpoint(doc_type, doc_name), data)
+
+    def get_data(self, doc_type: str, doc_name: str | None = None, filters: list[str] = [], params: dict | None = None):
+        endpoint = self.get_endpoint(doc_type, doc_name)
         params = params.copy() if params else {}
         if len(filters) > 0:
             params["filters"] = f"[{','.join(filters)}]"
@@ -63,7 +68,8 @@ class FrappeAPI:
             logging.error(f"Fehler beim Abrufen der Daten von {endpoint} ({params}): {e}")
             return None
 
-    def get_all_data(self, endpoint: str, filters: list[str] = [], params: dict | None = None):
+    def get_all_data(self, doc_type: str, filters: list[str] = [], params: dict | None = None):
+
         limit_start = 0
         data = []
         while len(data) == limit_start:
@@ -71,7 +77,7 @@ class FrappeAPI:
             params["limit"] = self.config.limit_page_length
             params["limit_start"] = limit_start
             params["fields"] = '["*"]'
-            res = self.get_data(endpoint, filters, params)
+            res = self.get_data(doc_type, filters=filters, params=params)
             if res:
                 more_data = res.get("data")
                 if isinstance(more_data, list):
@@ -79,15 +85,27 @@ class FrappeAPI:
             limit_start = limit_start + self.config.limit_page_length
         return {"data": data}
 
-    def delete(self, endpoint: str, doc_name: str):
+    def delete(self, doc_type: str, doc_name: str):
+        endpoint = self.get_endpoint(doc_type, doc_name)
         try:
-            response = requests.delete(endpoint + "/" + doc_name, headers=self.headers)
+            response = requests.delete(endpoint, headers=self.headers)
             response.raise_for_status()
             logging.debug(f"{doc_name} erfolgreich gelöscht. ({endpoint})")
             return response.json()
         except requests.exceptions.RequestException as e:
             logging.error(f"Fehler beim Löschen von {doc_name} ({endpoint}): {e}")
             return None
+
+    def get_endpoint(self, doc_type: str, doc_name: str | None = None):
+        endpoint = f"{self.config.url}/api/resource/{doc_type}"
+        if doc_name:
+            endpoint = endpoint + f"/{doc_name}"
+        return endpoint
+
+    def get_time_zone(self):
+        system_settings = self.get_data("System Settings", "System Settings").get("data")
+        if system_settings:
+            return system_settings["time_zone"]
 
 
 class CustomEncoder(json.JSONEncoder):

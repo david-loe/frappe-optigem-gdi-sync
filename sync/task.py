@@ -97,7 +97,7 @@ class SyncTaskBase(Generic[T], ABC):
         filters = []
         if last_sync_date:
             filters.append(f'["modified", ">=", "{last_sync_date.isoformat()}"]')
-        frappe_response = self.frappe_api.get_all_data(self.config.endpoint, filters)
+        frappe_response = self.frappe_api.get_all_data(self.config.doc_type, filters)
         records = frappe_response.get("data", [])
         for rec in records:
             for field in self.config.frappe.datetime_fields:
@@ -167,7 +167,7 @@ class SyncTaskBase(Generic[T], ABC):
         """
         if self.config.create_new:
             frappe_data = self.map_db_to_frappe(db_rec)
-            return self.frappe_api.send_data("POST", self.config.endpoint, frappe_data).get("data")
+            return self.frappe_api.insert_data(self.config.doc_type, frappe_data).get("data")
 
     def update_frappe_record(self, db_rec: dict, frappe_doc_name: str):
         """
@@ -176,8 +176,7 @@ class SyncTaskBase(Generic[T], ABC):
         """
         frappe_rec = self.map_db_to_frappe(db_rec)
         frappe_data, frappe_keys = self.split_frappe_in_data_and_keys(frappe_rec)
-        endpoint = f"{self.config.endpoint}/{frappe_doc_name}"
-        return self.frappe_api.send_data("PUT", endpoint, frappe_data).get("data")
+        return self.frappe_api.update_data(self.config.doc_type, frappe_doc_name, frappe_data).get("data")
 
     def update_db_record(self, frappe_rec: dict):
         """
