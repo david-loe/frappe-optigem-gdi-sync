@@ -23,8 +23,11 @@ class FrappeAPI:
         api_secret = auth_config.api_secret
         self.headers["Authorization"] = f"token {api_key}:{api_secret}"
 
-    def _send_data(self, method: Literal["PUT", "POST"], endpoint: str, data):
+    def _send_data(self, method: Literal["PUT", "POST"], endpoint: str, data: dict):
         try:
+            # To old modified date leads to 413 frappe.exceptions.TimestampMismatchError and frappe overrides it anyway
+            if "modified" in data:
+                data.pop("modified")
             json_data = json.dumps(data, cls=CustomEncoder)
             if self.dry_run:
                 logging.info(
@@ -85,10 +88,14 @@ class FrappeAPI:
                 if isinstance(more_data, list):
                     data = data + more_data
             limit_start = limit_start + self.config.limit_page_length
+        logging.debug(f"Insgesamt {len(data)} Datensätze gefunden.")
         return {"data": data}
 
     def delete(self, doc_type: str, doc_name: str):
         endpoint = self.get_endpoint(doc_type, doc_name)
+        if self.dry_run:
+            logging.info(f"""DRY_RUN: DELETE {endpoint}""")
+            return {"message": "ok"}
         try:
             response = requests.delete(endpoint, headers=self.headers)
             response.raise_for_status()

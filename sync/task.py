@@ -10,7 +10,10 @@ T = TypeVar("T", bound=TaskConfig)
 
 
 class SyncTaskBase(Generic[T], ABC):
-    def __init__(self, task_config: T, db_conn: DatabaseConnection, frappe_api: FrappeAPI, dry_run: bool):
+    def __init__(
+        self, task_name: str, task_config: T, db_conn: DatabaseConnection, frappe_api: FrappeAPI, dry_run: bool
+    ):
+        self.name = task_name
         self.config = task_config
         self.frappe_api = frappe_api
         self.dry_run = dry_run
@@ -64,6 +67,13 @@ class SyncTaskBase(Generic[T], ABC):
                 value = record[frappe_field]
                 if value is not None:
                     db_data[db_column] = value
+                    if (
+                        frappe_field == self.config.frappe.modified_field
+                        and db_column == self.config.db.modified_field
+                        and isinstance(value, datetime)
+                    ):
+                        # harmonize time zones
+                        db_data[db_column] = value - self.frappe_tz_delta + self.db_tz_delta
             elif warns:
                 logging.warning(f"Feld '{frappe_field}' fehlt im Frappe-Datensatz {record}.")
         return db_data
@@ -107,6 +117,13 @@ class SyncTaskBase(Generic[T], ABC):
                 if field in rec and isinstance(rec[field], str):
                     try:
                         rec[field] = datetime.fromisoformat(rec[field])
+                    except ValueError:
+                        # Falls der String kein gültiges ISO-Datum ist, bleibt der Wert unverändert.
+                        pass
+            for field in self.config.frappe.int_fields:
+                if field in rec and isinstance(rec[field], str):
+                    try:
+                        rec[field] = int(rec[field])
                     except ValueError:
                         # Falls der String kein gültiges ISO-Datum ist, bleibt der Wert unverändert.
                         pass
@@ -172,16 +189,19 @@ class SyncTaskBase(Generic[T], ABC):
         """
         if self.config.create_new:
             frappe_data = self.map_db_to_frappe(db_rec)
-            return self.frappe_api.insert_data(self.config.doc_type, frappe_data).get("data")
+            res = self.frappe_api.insert_data(self.config.doc_type, frappe_data)
+            if res:
+                return res.get("data")
 
     def update_frappe_record(self, db_rec: dict, frappe_doc_name: str):
         """
         Aktualisiert einen vorhandenen Frappe-Datensatz mit den Werten aus dem DB-Datensatz.
-        Es wird davon ausgegangen, dass der Frappe-Datensatz ein eindeutiges 'name'-Feld besitzt.
         """
         frappe_rec = self.map_db_to_frappe(db_rec)
         frappe_data, frappe_keys = self.split_frappe_in_data_and_keys(frappe_rec)
-        return self.frappe_api.update_data(self.config.doc_type, frappe_doc_name, frappe_data).get("data")
+        res = self.frappe_api.update_data(self.config.doc_type, frappe_doc_name, frappe_data)
+        if res:
+            return res.get("data")
 
     def update_db_record(self, frappe_rec: dict):
         """

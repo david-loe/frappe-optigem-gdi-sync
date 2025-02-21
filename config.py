@@ -35,9 +35,12 @@ class FrappeConfig(FrappeAuthConfig):
 
 
 class TaskFrappeBase(BaseModel):
-    modified_field: str
+    modified_field: Literal["modified"] = "modified"
     id_field: Literal["name"] = "name"
+    # All Date fields that will be converted to datetime after get (due to json)
     datetime_fields: list[str] = []
+    # All fields that will get parsed to int (due to frappe int fields have default 0, so int are sometimes stored in 'Data' Fields (string))
+    int_fields: list[str] = []
 
     def model_post_init(self, __context):
         if self.modified_field not in self.datetime_fields:
@@ -65,7 +68,6 @@ class TaskBase(BaseModel):
     key_fields: list[str]
     frappe: Optional[TaskFrappeBase] = None
     db: Optional[TaskDbBase] = None
-    name: Optional[str] = None
     table_name: Optional[str] = None
     query: Optional[str] = None
     query_with_timestamp: Optional[str] = None
@@ -102,13 +104,12 @@ class BidirectionalTaskConfig(TaskBase):
     table_name: str
     frappe: TaskFrappeBidirectional
     db: TaskDbBidirectional
-    name: str = "Bidirectional Sync"
     delete: bool = True
+    datetime_comparison_accuracy_milliseconds: int = 100
 
 
 class DbToFrappeTaskConfig(TaskBase):
     direction: Literal["db_to_frappe"]
-    name: str = "DB -> Frappe"
     process_all: bool = True
 
     @model_validator(mode="after")
@@ -121,7 +122,6 @@ class DbToFrappeTaskConfig(TaskBase):
 class FrappeToDbTaskConfig(TaskBase):
     direction: Literal["frappe_to_db"]
     table_name: str
-    name: str = "Frappe -> DB"
 
 
 TaskConfig = Annotated[
@@ -130,8 +130,9 @@ TaskConfig = Annotated[
 
 
 class Config(BaseModel):
-    dry_run: bool = False
-    timestamp_file: str = "timestamps.yaml"
     databases: dict[str, DatabaseConfig]
     frappe: FrappeConfig
-    tasks: list[TaskConfig]
+    tasks: dict[str, TaskConfig]
+    dry_run: bool = False
+    timestamp_file: str = "timestamps.yaml"
+    timestamp_buffer_seconds: int = 15
