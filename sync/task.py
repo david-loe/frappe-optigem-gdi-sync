@@ -15,8 +15,8 @@ class SyncTaskBase(Generic[T], ABC):
         self.frappe_api = frappe_api
         self.dry_run = dry_run
         self.db_conn = db_conn.get_connection(self.config.db_name)
-        self.frappe_tz_delta = frappe_api.get_time_zone()
-        self.db_tz_delta = get_time_zone(db_conn)
+        self.frappe_tz_delta = frappe_api.tz_delta
+        self.db_tz_delta = get_time_zone(self.db_conn)
 
     @abstractmethod
     def sync(self, last_sync_date_utc: datetime | None = None):

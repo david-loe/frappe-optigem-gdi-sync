@@ -16,7 +16,7 @@ class FrappeAPI:
         self.headers = {"Accept": "application/json"}
         self._setup_auth(config)
         self.dry_run = dry_run
-        print(self.get_time_zone())
+        self.tz_delta = self.get_time_zone()
 
     def _setup_auth(self, auth_config: FrappeAuthConfig):
         api_key = auth_config.api_key
