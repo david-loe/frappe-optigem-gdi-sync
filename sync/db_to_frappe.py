@@ -6,8 +6,8 @@ from sync.task import SyncTaskBase
 
 
 class DbToFrappeSyncTask(SyncTaskBase[DbToFrappeTaskConfig]):
-    def sync(self, last_sync_date: datetime | None = None):
-        db_records = self.get_db_records(last_sync_date)
+    def sync(self, last_sync_date_utc: datetime | None = None):
+        db_records = self.get_db_records(last_sync_date_utc)
 
         for record in db_records:
             data = self.map_db_to_frappe(record)

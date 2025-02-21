@@ -5,6 +5,7 @@ import requests
 import json
 from datetime import datetime, date
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from config import FrappeAuthConfig, FrappeConfig
 
@@ -15,6 +16,7 @@ class FrappeAPI:
         self.headers = {"Accept": "application/json"}
         self._setup_auth(config)
         self.dry_run = dry_run
+        print(self.get_time_zone())
 
     def _setup_auth(self, auth_config: FrappeAuthConfig):
         api_key = auth_config.api_key
@@ -105,7 +107,8 @@ class FrappeAPI:
     def get_time_zone(self):
         system_settings = self.get_data("System Settings", "System Settings").get("data")
         if system_settings:
-            return system_settings["time_zone"]
+            tz_str = system_settings["time_zone"]
+            return datetime.now(ZoneInfo(tz_str)).utcoffset()
 
 
 class CustomEncoder(json.JSONEncoder):

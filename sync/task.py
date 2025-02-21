@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 import logging
 from typing import TypeVar, Generic
-from api.database import DatabaseConnection, format_query
+from api.database import DatabaseConnection, format_query, get_time_zone
 from api.frappe import FrappeAPI
 from config import TaskConfig
 
@@ -15,9 +15,11 @@ class SyncTaskBase(Generic[T], ABC):
         self.frappe_api = frappe_api
         self.dry_run = dry_run
         self.db_conn = db_conn.get_connection(self.config.db_name)
+        self.frappe_tz_delta = frappe_api.get_time_zone()
+        self.db_tz_delta = get_time_zone(db_conn)
 
     @abstractmethod
-    def sync(self, last_sync_date: datetime | None = None):
+    def sync(self, last_sync_date_utc: datetime | None = None):
         """Führt die Synchronisation aus."""
         pass
 
@@ -90,12 +92,13 @@ class SyncTaskBase(Generic[T], ABC):
                 data[k] = v
         return data, keys
 
-    def get_frappe_records(self, last_sync_date: datetime | None = None) -> list:
+    def get_frappe_records(self, last_sync_date_utc: datetime | None = None) -> list:
         """
         Frappe-Datensätze abrufen
         """
         filters = []
-        if last_sync_date:
+        if last_sync_date_utc:
+            last_sync_date = last_sync_date_utc + self.frappe_tz_delta
             filters.append(f'["modified", ">=", "{last_sync_date.isoformat()}"]')
         frappe_response = self.frappe_api.get_all_data(self.config.doc_type, filters)
         records = frappe_response.get("data", [])
@@ -109,21 +112,22 @@ class SyncTaskBase(Generic[T], ABC):
                         pass
         return records
 
-    def get_frappe_key_record_dict(self, last_sync_date: datetime | None = None):
-        frappe_records = self.get_frappe_records(last_sync_date)
+    def get_frappe_key_record_dict(self, last_sync_date_utc: datetime | None = None):
+        frappe_records = self.get_frappe_records(last_sync_date_utc)
         frappe_dict: dict[tuple, dict[str, any]] = {}
         for rec in frappe_records:
             key = self.extract_key_from_frappe(rec)
             frappe_dict[key] = rec
         return frappe_dict
 
-    def get_db_records(self, last_sync_date: datetime | None = None):
+    def get_db_records(self, last_sync_date_utc: datetime | None = None):
         """
         DB-Datensätze abrufen
         """
         select_sql = f"SELECT * FROM {self.config.table_name}"
         params = []
-        if last_sync_date:
+        if last_sync_date_utc:
+            last_sync_date = last_sync_date_utc + self.db_tz_delta
             params = [last_sync_date]
             select_sql = select_sql + f" WHERE {self.config.db.modified_field} >= ?"
             if self.config.db.fallback_modified_field:
@@ -132,14 +136,15 @@ class SyncTaskBase(Generic[T], ABC):
 
         if self.config.query:
             select_sql = self.config.query
-            if last_sync_date:
+            if last_sync_date_utc:
+                last_sync_date = last_sync_date_utc + self.db_tz_delta
                 select_sql = self.config.query_with_timestamp
                 params = [last_sync_date] * self.config.query_with_timestamp.count("?")
 
         return self._execute_select_query(select_sql, params)
 
-    def get_db_key_record_dict(self, last_sync_date: datetime | None = None):
-        db_records = self.get_db_records(last_sync_date)
+    def get_db_key_record_dict(self, last_sync_date_utc: datetime | None = None):
+        db_records = self.get_db_records(last_sync_date_utc)
         db_dict: dict[tuple, dict[str, any]] = {}
         for rec in db_records:
             key = self.extract_key_from_db(rec)

@@ -7,9 +7,9 @@ from sync.task import SyncTaskBase
 
 
 class BidirectionalSyncTask(SyncTaskBase[BidirectionalTaskConfig]):
-    def sync(self, last_sync_date: datetime | None = None):
-        frappe_dict = self.get_frappe_key_record_dict(last_sync_date)
-        db_dict = self.get_db_key_record_dict(last_sync_date)
+    def sync(self, last_sync_date_utc: datetime | None = None):
+        frappe_dict = self.get_frappe_key_record_dict(last_sync_date_utc)
+        db_dict = self.get_db_key_record_dict(last_sync_date_utc)
 
         # Alle vorhandenen Schlüssel zusammenführen
         all_keys = set(frappe_dict.keys()).union(db_dict.keys())

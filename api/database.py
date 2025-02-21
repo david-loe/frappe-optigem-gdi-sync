@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 import fdb
 import pyodbc
 import logging
@@ -30,6 +31,7 @@ class DatabaseConnection:
                 charset=db_config.charset,
             )
             logging.info(f"Verbindung zur Firebird-Datenbank '{db_name}' hergestellt.")
+            get_time_zone(conn)
             return conn
         except Exception as e:
             logging.error(f"Fehler bei der Verbindung zur Firebird-Datenbank '{db_name}': {e}")
@@ -45,10 +47,13 @@ class DatabaseConnection:
                 f"PWD={db_config.password};"
                 f"TrustServerCertificate={'yes' if db_config.trust_server_certificate else 'no'}"
             )
+            conn = pyodbc.connect(mssql_conn_str)
             logging.info(f"Verbindung zur MSSQL-Datenbank '{db_name}' hergestellt.")
-            return pyodbc.connect(mssql_conn_str)
+            get_time_zone(conn)
+            return conn
         except Exception as e:
             logging.error(f"Fehler bei der Verbindung zur MSSQL-Datenbank '{db_name}': {e}")
+
             sys.exit(1)
 
     def get_connection(self, db_name: str):
@@ -63,6 +68,27 @@ class DatabaseConnection:
         for db_name, conn in self.connections.items():
             conn.close()
             logging.info(f"Verbindung zur Datenbank '{db_name}' geschlossen.")
+
+
+def get_time_zone(db_conn: fdb.Connection | pyodbc.Connection):
+    minutes: int = None
+    if isinstance(db_conn, fdb.Connection):
+        cursor = db_conn.cursor()
+        try:
+            cursor.execute("SELECT CURRENT_TIMESTAMP FROM RDB$DATABASE;")
+            current_db_time: datetime = cursor.fetchone()[0]
+            minutes = round((current_db_time - datetime.now(timezone.utc).replace(tzinfo=None)).total_seconds() / 60)
+        finally:
+            cursor.close()
+    else:
+        cursor = db_conn.cursor()
+        try:
+            cursor.execute("SELECT DATEPART(TZOFFSET, SYSDATETIMEOFFSET()) AS TimeZoneOffsetMinutes;")
+            minutes = cursor.fetchone()[0]
+        finally:
+            cursor.close()
+    if minutes is not None:
+        return timedelta(minutes=minutes)
 
 
 def format_query(query, params):

@@ -1,5 +1,5 @@
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import json
 import logging
@@ -43,24 +43,23 @@ class SyncManager:
 
     def run(self):
         for task in self.tasks:
-            last_sync_date = self.get_last_sync_date(task.config)
-            logging.info(f"Starte Sync Task '{task.config.name}' ab {last_sync_date}")
-            task.sync(last_sync_date)
-            self.save_sync_date(task.config, datetime.now())
+            last_sync_date_utc = self.get_last_sync_date(task.config)
+            logging.info(f"Starte Sync Task '{task.config.name}' ab {last_sync_date_utc}")
+            task.sync(last_sync_date_utc)
+            self.save_sync_date(task.config, datetime.now(timezone.utc).replace(tzinfo=None))
         self.db_conn.close_connections()
 
     def get_last_sync_date(self, task_config: TaskConfig) -> dict[str, datetime]:
         hash = self._gen_task_hash(task_config)
         entries = self.timestamp_db.get("timestamps")
         if entries:
-            print(entries)
             for task_name, entry in entries.items():
                 if entry["hash"] == hash:
-                    return datetime.fromisoformat(entry["last_sync_date"])
+                    return datetime.fromisoformat(entry["last_sync_date_utc"])
         return None
 
     def save_sync_date(self, task_config: TaskConfig, date: datetime):
-        new_entry = {"hash": self._gen_task_hash(task_config), "last_sync_date": date.isoformat()}
+        new_entry = {"hash": self._gen_task_hash(task_config), "last_sync_date_utc": date.isoformat()}
         entries = self.timestamp_db.get("timestamps")
         if not entries:
             entries = {}
