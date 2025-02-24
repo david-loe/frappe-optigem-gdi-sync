@@ -1,488 +1,554 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "title": "Config Schema",
-    "type": "object",
-    "properties": {
-        "databases": {
-            "type": "object",
-            "patternProperties": {
-                ".*": {
-                    "oneOf": [
-                        {
-                            "type": "object",
-                            "properties": {
-                                "type": {
-                                    "const": "mssql"
-                                },
-                                "database": {
-                                    "type": "string"
-                                },
-                                "user": {
-                                    "type": "string"
-                                },
-                                "password": {
-                                    "type": "string"
-                                },
-                                "server": {
-                                    "type": "string"
-                                },
-                                "trust_server_certificate": {
-                                    "type": "boolean",
-                                    "default": false
-                                }
-                            },
-                            "required": [
-                                "type",
-                                "database",
-                                "user",
-                                "password",
-                                "server"
-                            ],
-                            "additionalProperties": false
-                        },
-                        {
-                            "type": "object",
-                            "properties": {
-                                "type": {
-                                    "const": "firebird"
-                                },
-                                "database": {
-                                    "type": "string"
-                                },
-                                "user": {
-                                    "type": "string"
-                                },
-                                "password": {
-                                    "type": "string"
-                                },
-                                "host": {
-                                    "type": "string"
-                                },
-                                "port": {
-                                    "type": "number"
-                                },
-                                "charset": {
-                                    "type": "string",
-                                    "default": "UTF8"
-                                }
-                            },
-                            "required": [
-                                "type",
-                                "database",
-                                "user",
-                                "password",
-                                "host",
-                                "port"
-                            ],
-                            "additionalProperties": false
-                        }
-                    ]
-                }
-            },
-            "additionalProperties": false
-        },
-        "frappe": {
-            "type": "object",
-            "properties": {
-                "api_key": {
-                    "type": "string"
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Config Schema",
+  "type": "object",
+  "properties": {
+    "databases": {
+      "type": "object",
+      "patternProperties": {
+        ".*": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "mssql"
                 },
-                "api_secret": {
-                    "type": "string"
+                "database": {
+                  "type": "string"
                 },
-                "limit_page_length": {
-                    "type": "number",
-                    "default": 20
+                "user": {
+                  "type": "string"
                 },
-                "url": {
-                    "type": "string"
+                "password": {
+                  "type": "string"
+                },
+                "server": {
+                  "type": "string"
+                },
+                "trust_server_certificate": {
+                  "type": "boolean",
+                  "default": false
                 }
+              },
+              "required": [
+                "type",
+                "database",
+                "user",
+                "password",
+                "server"
+              ],
+              "additionalProperties": false
             },
-            "required": [
-                "api_key",
-                "api_secret",
-                "url"
-            ],
-            "additionalProperties": false
-        },
-        "tasks": {
-            "type": "object",
-            "patternProperties": {
-                ".*": {
-                    "oneOf": [
-                        {
-                            "title": "Bidirectional Task",
-                            "type": "object",
-                            "properties": {
-                                "direction": {
-                                    "const": "bidirectional"
-                                },
-                                "doc_type": {
-                                    "type": "string"
-                                },
-                                "db_name": {
-                                    "type": "string"
-                                },
-                                "mapping": {
-                                    "type": "object",
-                                    "patternProperties": {
-                                        ".*": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "additionalProperties": false
-                                },
-                                "key_fields": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    }
-                                },
-                                "table_name": {
-                                    "type": "string"
-                                },
-                                "query": {
-                                    "type": "string"
-                                },
-                                "query_with_timestamp": {
-                                    "type": "string"
-                                },
-                                "create_new": {
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "use_last_sync_date": {
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "frappe": {
-                                    "type": "object",
-                                    "properties": {
-                                        "modified_field": {
-                                            "type": "string",
-                                            "const": "modified",
-                                            "default": "modified"
-                                        },
-                                        "id_field": {
-                                            "type": "string",
-                                            "const": "name",
-                                            "default": "name"
-                                        },
-                                        "datetime_fields": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string"
-                                            },
-                                            "default": []
-                                        },
-                                        "int_fields": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string"
-                                            },
-                                            "default": []
-                                        },
-                                        "fk_id_field": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": [
-                                        "fk_id_field"
-                                    ],
-                                    "additionalProperties": false
-                                },
-                                "db": {
-                                    "type": "object",
-                                    "properties": {
-                                        "modified_field": {
-                                            "type": "string"
-                                        },
-                                        "fallback_modified_field": {
-                                            "type": [
-                                                "string",
-                                                "null"
-                                            ]
-                                        },
-                                        "fk_id_field": {
-                                            "type": "string"
-                                        },
-                                        "id_field": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "required": [
-                                        "modified_field",
-                                        "fk_id_field",
-                                        "id_field"
-                                    ],
-                                    "additionalProperties": false
-                                },
-                                "delete": {
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "datetime_comparison_accuracy_milliseconds": {
-                                    "type": "number",
-                                    "default": 100
-                                }
-                            },
-                            "required": [
-                                "direction",
-                                "doc_type",
-                                "db_name",
-                                "mapping",
-                                "key_fields",
-                                "table_name",
-                                "frappe",
-                                "db"
-                            ],
-                            "additionalProperties": false
-                        },
-                        {
-                            "title": "DB to Frappe Task",
-                            "type": "object",
-                            "properties": {
-                                "direction": {
-                                    "const": "db_to_frappe"
-                                },
-                                "doc_type": {
-                                    "type": "string"
-                                },
-                                "db_name": {
-                                    "type": "string"
-                                },
-                                "mapping": {
-                                    "type": "object",
-                                    "patternProperties": {
-                                        ".*": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "additionalProperties": false
-                                },
-                                "key_fields": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    }
-                                },
-                                "table_name": {
-                                    "type": "string"
-                                },
-                                "query": {
-                                    "type": "string"
-                                },
-                                "query_with_timestamp": {
-                                    "type": "string"
-                                },
-                                "create_new": {
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "use_last_sync_date": {
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "frappe": {
-                                    "type": "object",
-                                    "properties": {
-                                        "modified_field": {
-                                            "type": "string",
-                                            "const": "modified",
-                                            "default": "modified"
-                                        },
-                                        "id_field": {
-                                            "type": "string",
-                                            "const": "name",
-                                            "default": "name"
-                                        },
-                                        "datetime_fields": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string"
-                                            },
-                                            "default": []
-                                        },
-                                        "int_fields": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string"
-                                            },
-                                            "default": []
-                                        }
-                                    },
-                                    "additionalProperties": false
-                                },
-                                "db": {
-                                    "type": "object",
-                                    "properties": {
-                                        "modified_field": {
-                                            "type": "string"
-                                        },
-                                        "fallback_modified_field": {
-                                            "type": [
-                                                "string",
-                                                "null"
-                                            ]
-                                        }
-                                    },
-                                    "required": [
-                                        "modified_field"
-                                    ],
-                                    "additionalProperties": false
-                                },
-                                "process_all": {
-                                    "type": "boolean",
-                                    "default": true
-                                }
-                            },
-                            "required": [
-                                "direction",
-                                "doc_type",
-                                "db_name",
-                                "mapping",
-                                "key_fields"
-                            ],
-                            "anyOf": [
-                                {
-                                    "required": [
-                                        "table_name"
-                                    ]
-                                },
-                                {
-                                    "required": [
-                                        "query"
-                                    ]
-                                }
-                            ],
-                            "additionalProperties": false
-                        },
-                        {
-                            "title": "Frappe to DB Task",
-                            "type": "object",
-                            "properties": {
-                                "direction": {
-                                    "const": "frappe_to_db"
-                                },
-                                "doc_type": {
-                                    "type": "string"
-                                },
-                                "db_name": {
-                                    "type": "string"
-                                },
-                                "mapping": {
-                                    "type": "object",
-                                    "patternProperties": {
-                                        ".*": {
-                                            "type": "string"
-                                        }
-                                    },
-                                    "additionalProperties": false
-                                },
-                                "key_fields": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    }
-                                },
-                                "table_name": {
-                                    "type": "string"
-                                },
-                                "query": {
-                                    "type": "string"
-                                },
-                                "query_with_timestamp": {
-                                    "type": "string"
-                                },
-                                "create_new": {
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "use_last_sync_date": {
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "frappe": {
-                                    "type": "object",
-                                    "properties": {
-                                        "modified_field": {
-                                            "type": "string",
-                                            "const": "modified",
-                                            "default": "modified"
-                                        },
-                                        "id_field": {
-                                            "type": "string",
-                                            "const": "name",
-                                            "default": "name"
-                                        },
-                                        "datetime_fields": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string"
-                                            },
-                                            "default": []
-                                        },
-                                        "int_fields": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string"
-                                            },
-                                            "default": []
-                                        }
-                                    },
-                                    "additionalProperties": false
-                                },
-                                "db": {
-                                    "type": "object",
-                                    "properties": {
-                                        "modified_field": {
-                                            "type": "string"
-                                        },
-                                        "fallback_modified_field": {
-                                            "type": [
-                                                "string",
-                                                "null"
-                                            ]
-                                        }
-                                    },
-                                    "required": [
-                                        "modified_field"
-                                    ],
-                                    "additionalProperties": false
-                                }
-                            },
-                            "required": [
-                                "direction",
-                                "doc_type",
-                                "db_name",
-                                "mapping",
-                                "key_fields",
-                                "table_name"
-                            ],
-                            "additionalProperties": false
-                        }
-                    ]
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "const": "firebird"
+                },
+                "database": {
+                  "type": "string"
+                },
+                "user": {
+                  "type": "string"
+                },
+                "password": {
+                  "type": "string"
+                },
+                "host": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "number"
+                },
+                "charset": {
+                  "type": "string",
+                  "default": "UTF8"
                 }
-            },
-            "additionalProperties": false
-        },
-        "dry_run": {
-            "type": "boolean",
-            "default": false
-        },
-        "timestamp_file": {
-            "type": "string",
-            "default": "timestamps.yaml"
-        },
-        "timestamp_buffer_seconds": {
-            "type": "number",
-            "default": 15
+              },
+              "required": [
+                "type",
+                "database",
+                "user",
+                "password",
+                "host",
+                "port"
+              ],
+              "additionalProperties": false
+            }
+          ]
         }
+      },
+      "additionalProperties": false
     },
-    "required": [
-        "databases",
-        "frappe",
-        "tasks"
-    ],
-    "additionalProperties": false
+    "frappe": {
+      "type": "object",
+      "properties": {
+        "api_key": {
+          "type": "string"
+        },
+        "api_secret": {
+          "type": "string"
+        },
+        "limit_page_length": {
+          "type": "number",
+          "default": 20
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "api_key",
+        "api_secret",
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "tasks": {
+      "type": "object",
+      "patternProperties": {
+        ".*": {
+          "oneOf": [
+            {
+              "title": "Bidirectional Task",
+              "type": "object",
+              "properties": {
+                "direction": {
+                  "const": "bidirectional"
+                },
+                "doc_type": {
+                  "type": "string"
+                },
+                "db_name": {
+                  "type": "string"
+                },
+                "mapping": {
+                  "type": "object",
+                  "patternProperties": {
+                    ".*": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "key_fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "table_name": {
+                  "type": "string"
+                },
+                "query": {
+                  "type": "string"
+                },
+                "query_with_timestamp": {
+                  "type": "string"
+                },
+                "create_new": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "use_last_sync_date": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "value_mapping": {
+                  "type": "object",
+                  "patternProperties": {
+                    ".*": {
+                      "type": "object",
+                      "patternProperties": {
+                        ".*": {
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "frappe": {
+                  "type": "object",
+                  "properties": {
+                    "modified_field": {
+                      "type": "string",
+                      "const": "modified",
+                      "default": "modified"
+                    },
+                    "id_field": {
+                      "type": "string",
+                      "const": "name",
+                      "default": "name"
+                    },
+                    "datetime_fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "default": []
+                    },
+                    "int_fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "default": []
+                    },
+                    "fk_id_field": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "fk_id_field"
+                  ],
+                  "additionalProperties": false
+                },
+                "db": {
+                  "type": "object",
+                  "properties": {
+                    "modified_field": {
+                      "type": "string"
+                    },
+                    "fallback_modified_field": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "fk_id_field": {
+                      "type": "string"
+                    },
+                    "id_field": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "modified_field",
+                    "fk_id_field",
+                    "id_field"
+                  ],
+                  "additionalProperties": false
+                },
+                "delete": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "datetime_comparison_accuracy_milliseconds": {
+                  "type": "number",
+                  "default": 100
+                }
+              },
+              "required": [
+                "direction",
+                "doc_type",
+                "db_name",
+                "mapping",
+                "key_fields",
+                "table_name",
+                "frappe",
+                "db"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "title": "DB to Frappe Task",
+              "type": "object",
+              "properties": {
+                "direction": {
+                  "const": "db_to_frappe"
+                },
+                "doc_type": {
+                  "type": "string"
+                },
+                "db_name": {
+                  "type": "string"
+                },
+                "mapping": {
+                  "type": "object",
+                  "patternProperties": {
+                    ".*": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "key_fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "table_name": {
+                  "type": "string"
+                },
+                "query": {
+                  "type": "string"
+                },
+                "query_with_timestamp": {
+                  "type": "string"
+                },
+                "create_new": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "use_last_sync_date": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "value_mapping": {
+                  "type": "object",
+                  "patternProperties": {
+                    ".*": {
+                      "type": "object",
+                      "patternProperties": {
+                        ".*": {
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "frappe": {
+                  "type": "object",
+                  "properties": {
+                    "modified_field": {
+                      "type": "string",
+                      "const": "modified",
+                      "default": "modified"
+                    },
+                    "id_field": {
+                      "type": "string",
+                      "const": "name",
+                      "default": "name"
+                    },
+                    "datetime_fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "default": []
+                    },
+                    "int_fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "default": []
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "db": {
+                  "type": "object",
+                  "properties": {
+                    "modified_field": {
+                      "type": "string"
+                    },
+                    "fallback_modified_field": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "modified_field"
+                  ],
+                  "additionalProperties": false
+                },
+                "process_all": {
+                  "type": "boolean",
+                  "default": true
+                }
+              },
+              "required": [
+                "direction",
+                "doc_type",
+                "db_name",
+                "mapping",
+                "key_fields"
+              ],
+              "anyOf": [
+                {
+                  "required": [
+                    "table_name"
+                  ]
+                },
+                {
+                  "required": [
+                    "query"
+                  ]
+                }
+              ],
+              "additionalProperties": false
+            },
+            {
+              "title": "Frappe to DB Task",
+              "type": "object",
+              "properties": {
+                "direction": {
+                  "const": "frappe_to_db"
+                },
+                "doc_type": {
+                  "type": "string"
+                },
+                "db_name": {
+                  "type": "string"
+                },
+                "mapping": {
+                  "type": "object",
+                  "patternProperties": {
+                    ".*": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "key_fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "table_name": {
+                  "type": "string"
+                },
+                "query": {
+                  "type": "string"
+                },
+                "query_with_timestamp": {
+                  "type": "string"
+                },
+                "create_new": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "use_last_sync_date": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "value_mapping": {
+                  "type": "object",
+                  "patternProperties": {
+                    ".*": {
+                      "type": "object",
+                      "patternProperties": {
+                        ".*": {
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "number"
+                            }
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "frappe": {
+                  "type": "object",
+                  "properties": {
+                    "modified_field": {
+                      "type": "string",
+                      "const": "modified",
+                      "default": "modified"
+                    },
+                    "id_field": {
+                      "type": "string",
+                      "const": "name",
+                      "default": "name"
+                    },
+                    "datetime_fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "default": []
+                    },
+                    "int_fields": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "default": []
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "db": {
+                  "type": "object",
+                  "properties": {
+                    "modified_field": {
+                      "type": "string"
+                    },
+                    "fallback_modified_field": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "modified_field"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "direction",
+                "doc_type",
+                "db_name",
+                "mapping",
+                "key_fields",
+                "table_name"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "dry_run": {
+      "type": "boolean",
+      "default": false
+    },
+    "timestamp_file": {
+      "type": "string",
+      "default": "timestamps.yaml"
+    },
+    "timestamp_buffer_seconds": {
+      "type": "number",
+      "default": 15
+    }
+  },
+  "required": [
+    "databases",
+    "frappe",
+    "tasks"
+  ],
+  "additionalProperties": false
 }

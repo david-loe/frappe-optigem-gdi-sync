@@ -73,14 +73,20 @@ class SyncTaskBase(Generic[T], ABC):
             if frappe_field in record:
                 value = record[frappe_field]
                 if value is not None:
-                    db_data[db_column] = value
+                    # harmonize time zones
                     if (
                         frappe_field == self.config.frappe.modified_field
                         and db_column == self.config.db.modified_field
                         and isinstance(value, datetime)
                     ):
-                        # harmonize time zones
-                        db_data[db_column] = value - self.frappe_tz_delta + self.db_tz_delta
+                        value = value - self.frappe_tz_delta + self.db_tz_delta
+
+                    # use value_mapping
+                    if frappe_field in self.config.value_mapping:
+                        for f_v, db_v in self.config.value_mapping[frappe_field].items():
+                            if f_v == value:
+                                value = db_v
+                    db_data[db_column] = value
             elif warns:
                 logging.warning(f"Feld '{frappe_field}' fehlt im Frappe-Datensatz {record}.")
         return db_data
@@ -94,6 +100,12 @@ class SyncTaskBase(Generic[T], ABC):
             if db_column in record:
                 value = record[db_column]
                 if value is not None:
+                    # use value_mapping
+                    if frappe_field in self.config.value_mapping:
+                        for f_v, db_v in self.config.value_mapping[frappe_field].items():
+                            if db_v == value:
+                                value = f_v
+
                     frappe_data[frappe_field] = value
             elif warns:
                 logging.warning(f"Spalte '{db_column}' fehlt im DB-Datensatz {record}.")

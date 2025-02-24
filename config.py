@@ -68,6 +68,7 @@ class TaskBase(BaseModel):
     key_fields: list[str]
     frappe: Optional[TaskFrappeBase] = None
     db: Optional[TaskDbBase] = None
+    value_mapping: Optional[dict[str, dict[str | int, str | int]]] = None
     table_name: Optional[str] = None
     query: Optional[str] = None
     query_with_timestamp: Optional[str] = None
