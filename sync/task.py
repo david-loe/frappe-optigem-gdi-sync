@@ -35,8 +35,11 @@ class SyncTaskBase(Generic[T], ABC):
                 f"""Anfrage an {self.config.db_name}
                     {format_query(sql, params)}"""
             )
-            with self.db_conn.cursor() as cursor:
+            cursor = self.db_conn.cursor()
+            try:
                 cursor.execute(sql, params)
+            finally:
+                cursor.close()
             self.db_conn.commit()
             logging.info(success_msg)
         except Exception as e:
@@ -45,7 +48,8 @@ class SyncTaskBase(Generic[T], ABC):
 
     def _execute_select_query(self, sql: str, params: list = []):
         db_records: list[dict[str, any]] = []
-        with self.db_conn.cursor() as cursor:
+        cursor = self.db_conn.cursor()
+        try:
             logging.debug(
                 f"""Anfrage an {self.config.db_name}
                     {format_query(sql, params)}"""
@@ -55,6 +59,9 @@ class SyncTaskBase(Generic[T], ABC):
             for row in cursor.fetchall():
                 rec = dict(zip(db_columns, row))
                 db_records.append(rec)
+        finally:
+            cursor.close()
+
         return db_records
 
     def map_frappe_to_db(self, record: dict, warns=True) -> dict:

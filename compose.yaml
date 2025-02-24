@@ -4,8 +4,6 @@ services:
     volumes:
       - ./config.yaml:/config.yaml:ro
     command: --config /config.yaml
-    env_file:
-      - .env
   # db:
   #   image: postgres
   #   restart: always

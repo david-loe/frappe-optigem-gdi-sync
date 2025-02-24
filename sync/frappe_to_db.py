@@ -17,9 +17,12 @@ class FrappeToDbSyncTask(SyncTaskBase[FrappeToDbTaskConfig]):
             select_sql = f"SELECT COUNT(*) FROM {self.config.table_name} WHERE {where_clause}"
             params = list(key_values.values())
             exists = False
-            with self.db_conn.cursor() as cursor:
+            cursor = self.db_conn.cursor()
+            try:
                 cursor.execute(select_sql, params)
                 exists = cursor.fetchone()[0] > 0
+            finally:
+                cursor.close()
 
             if exists:
                 self.update_db_record(frappe_rec)
