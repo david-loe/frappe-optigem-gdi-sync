@@ -32,128 +32,84 @@ cp config.yaml.example config.yaml
 
 ## Konfiguration der Anwendung
 
-Diese Anwendung nutzt eine YAML-Konfiguration, um Datenbankverbindungen, Frappe-API-Zugriffe und synchronisationsbezogene Tasks zu definieren. Im Folgenden werden alle Konfigurationsmöglichkeiten erläutert.
+Diese Konfigurationsdatei ermöglicht es, Datenbankverbindungen, den Frappe-Zugang sowie diverse Synchronisationsaufgaben zentral zu definieren. Dadurch können Sie flexibel festlegen, wie Daten zwischen Frappe und unterschiedlichen Datenbanken (MSSQL, Firebird) ausgetauscht werden sollen.
 
-### 1. Global
+### 1. Databases
 
-- **dry_run**:  
-  _Typ_: Boolean (default: `false`)  
-  _Beschreibung_: Wenn auf `true` gesetzt, wird kein schreibender Zugriff auf Datenbanken oder Frappe vorgenommen – es erfolgt ein sogenannter Trockenlauf.
+Unter `databases` legen Sie eine oder mehrere Datenbankverbindungen fest. Jede Datenbank wird durch einen eindeutigen Schlüssel identifiziert.
 
-### 2. Datenbanken (databases)
+- **MSSQL-Datenbank (`type: mssql`):**
 
-Hier können mehrere Datenbanken definiert werden. Jeder Eintrag benötigt einen eindeutigen Schlüssel (Name der DB-Konfiguration).
+  - **server:** Adresse des MSSQL-Servers.
+  - **trust_server_certificate:** Boolean, ob dem Serverzertifikat vertraut werden soll.
+  - **database:** Name der Datenbank.
+  - **user:** Benutzername zur Authentifizierung.
+  - **password:** Passwort zur Authentifizierung.
 
-#### Unterstützte Typen:
+- **Firebird-Datenbank (`type: firebird`):**
+  - **host:** Adresse des Firebird-Servers.
+  - **port:** Portnummer, unter der der Server erreichbar ist.
+  - **charset:** Zeichensatz, Standardwert ist "UTF8".
+  - **database:** Name der Datenbank.
+  - **user:** Benutzername.
+  - **password:** Passwort.
 
-- **MSSQL**  
-  _Kennzeichen_: `type: mssql`  
-  _Erforderliche Felder_:
+### 2. Frappe
 
-  - `database`: Name der Datenbank
-  - `user`: Benutzername
-  - `password`: Passwort
-  - `server`: Serveradresse (z.B. IP oder Hostname)
-  - `trust_server_certificate`: (Boolean) Gibt an, ob das Serverzertifikat vertraut werden soll (Standard: `false`).
+Die `frappe`-Sektion enthält alle notwendigen Informationen, um eine Verbindung zu einer Frappe-Instanz herzustellen:
 
-- **Firebird**  
-  _Kennzeichen_: `type: firebird`  
-  _Erforderliche Felder_:
-  - `database`: Name der Datenbank
-  - `user`: Benutzername
-  - `password`: Passwort
-  - `host`: Hostadresse
-  - `port`: Portnummer
-  - `charset`: Zeichensatz (Standard: `UTF8`).
+- **api_key:** API-Schlüssel für den Zugriff.
+- **api_secret:** API-Geheimnis.
+- **limit_page_length:** Maximale Anzahl an Einträgen pro Seite (Standard ist 20, im Beispiel z. B. auf 50 gesetzt).
+- **url:** Basis-URL der Frappe-Instanz (ohne abschließenden Schrägstrich).
 
-### 3. Frappe-Konfiguration (frappe)
+### 3. Tasks
 
-Diese Einstellungen definieren den Zugang zur Frappe API.
+Die `tasks`-Sektion definiert die zu synchronisierenden Aufgaben. Jede Aufgabe wird unter einem eigenen Schlüssel definiert und muss den Typ der Synchronisation über das Feld `direction` angeben. Es gibt drei Typen:
 
-- **api_key**:  
-  _Typ_: String  
-  _Beschreibung_: API-Schlüssel für den Zugriff auf Frappe.
+- **Bidirektionale Synchronisation (`direction: bidirectional`):**  
+  Synchronisiert Daten in beide Richtungen (Frappe ↔ Datenbank).  
+  **Wichtige Felder:**
 
-- **api_secret**:  
-  _Typ_: String  
-  _Beschreibung_: API-Geheimnis für den Zugriff auf Frappe.
+  - **doc_type:** Der in Frappe verwendete Dokumenttyp.
+  - **db_name:** Bezeichnung der verwendeten Datenbank (entspricht einem Schlüssel unter `databases`).
+  - **mapping:** Ein Dictionary, das die Zuordnung von Frappe-Feldern zu Datenbankfeldern definiert.
+  - **key_fields:** Liste der Felder, die als Schlüssel dienen und im Mapping vorhanden sein müssen.
+  - **table_name:** Name der Zieltabelle in der Datenbank.
+  - **frappe:** Enthält Frappe-spezifische Einstellungen, zusätzlich:
+    - **fk_id_field:** Fremdschlüssel-Feld zur eindeutigen Identifikation.
+  - **db:** Enthält Datenbankspezifische Einstellungen, zusätzlich:
+    - **fk_id_field:** Fremdschlüssel-Feld.
+    - **id_field:** Identifikationsfeld in der Datenbank.
+  - **delete:** Gibt an, ob Datensätze gelöscht werden sollen (Standard: true).
+  - **datetime_comparison_accuracy_milliseconds:** Genauigkeit beim Vergleich von Datums-/Zeitfeldern in Millisekunden.
 
-- **limit_page_length**:  
-  _Typ_: Integer  
-  _Beschreibung_: Legt fest, wie viele Datensätze maximal pro Seite abgefragt werden (Standard: `20`).
+- **DB zu Frappe Synchronisation (`direction: db_to_frappe`):**  
+  Importiert Daten von der Datenbank nach Frappe.  
+  **Wichtige Felder:**
 
-### 4. Tasks (tasks)
+  - **doc_type, db_name, mapping und key_fields:** Wie oben.
+  - Es muss **entweder** `table_name` **oder** `query` angegeben werden. Im Beispiel wird `table_name` genutzt.
+  - **frappe** und **db:** Konfigurationen zur Nutzung des letzten Synchronisationsdatums (wichtig, wenn `use_last_sync_date` aktiviert ist).
+  - **process_all:** Boolean, ob alle Datensätze verarbeitet werden sollen (Standard: true).
 
-Hier werden die Synchronisationsaufgaben definiert. Jede Task konfiguriert den Datenaustausch zwischen einer Datenbank und Frappe. Es gibt drei verschiedene Task-Typen, die über das Feld `direction` unterschieden werden:
+- **Frappe zu DB Synchronisation (`direction: frappe_to_db`):**  
+  Exportiert Daten von Frappe in die Datenbank.  
+  **Wichtige Felder:**
+  - **doc_type, db_name, mapping und key_fields:** Wie oben.
+  - **table_name:** Gibt an, in welche Tabelle die Daten in der Datenbank geschrieben werden sollen.
 
-#### Gemeinsame Felder (für alle Tasks):
+Zusätzlich gibt es in allen Aufgaben (TaskBase) folgende allgemeine Optionen:
 
-- **direction**:  
-  _Typ_: Literal (mögliche Werte: `bidirectional`, `db_to_frappe`, `frappe_to_db`)  
-  _Beschreibung_: Legt die Richtung der Synchronisation fest.
+- **create_new:** Legt fest, ob neue Datensätze angelegt werden sollen (Standard: true).
+- **use_last_sync_date:** Gibt an, ob das letzte Synchronisationsdatum zur Filterung von Änderungen verwendet wird (Standard: true).
+- **query_with_timestamp:** Muss angegeben werden, wenn eine eigene Query verwendet wird und `use_last_sync_date` aktiviert ist.
 
-- **name**:  
-  _Typ_: String  
-  _Beschreibung_: Bezeichner der Task. Manche Typen haben einen Standardwert.
+### 4. Allgemeine Konfiguration
 
-- **doc_type**:  
-  _Typ_: String  
-  _Beschreibung_: API-Endpunkt in Frappe, der angesprochen wird.
-
-- **db_name**:  
-  _Typ_: String  
-  _Beschreibung_: Verweist auf den Schlüssel der in `databases` definierten Datenbank, die verwendet wird.
-
-- **mapping**:  
-  _Typ_: Dictionary (`str` -> `str`)  
-  _Beschreibung_: Ordnet Felder zwischen Frappe und der Datenbank zu.  
-  **Wichtig:** Alle in `key_fields` aufgeführten Felder müssen als Schlüssel in diesem Mapping vorhanden sein.
-
-- **key_fields**:  
-  _Typ_: Liste von Strings  
-  _Beschreibung_: Felder, die als Schlüssel zur Identifikation von Datensätzen dienen und zwingend im Mapping vorhanden sein müssen.
-
-- **table_name**:  
-  _Typ_: String (optional, je nach Task-Typ)  
-  _Beschreibung_: Name der Tabelle in der Datenbank, aus der Daten gelesen oder in die Daten geschrieben werden.
-
-- **query**:  
-  _Typ_: String (optional)  
-  _Beschreibung_: Alternative zur `table_name`-Angabe. Hier kann eine SQL-Abfrage angegeben werden.  
-  **Hinweis:** Bei Tasks des Typs `db_to_frappe` muss mindestens entweder `table_name` oder `query` angegeben werden.
-
-- **process_all**:  
-  _Typ_: Boolean (default: `false`)  
-  _Beschreibung_: Gibt an, ob alle Datensätze verarbeitet werden sollen.
-
-- **create_new**:  
-  _Typ_: Boolean (default: `false`)  
-  _Beschreibung_: Gibt an, ob neue Einträge in Frappe erstellt werden sollen, falls diese noch nicht vorhanden sind.
-
-#### Spezifische Task-Typen:
-
-#### 4.1 Bidirectional Task (`direction: bidirectional`)
-
-- **Zusätzliche Felder**:
-  - **frappe**:  
-    Enthält die Frappe-spezifische Task-Konfiguration:
-    - `modified_field`: Feld in Frappe, das das Änderungsdatum enthält.
-    - `fk_id_field`: Fremdschlüssel-Feld in Frappe.
-  - **db**:  
-    Enthält die Datenbank-spezifische Task-Konfiguration:
-    - `modified_field`: Feld in der Datenbank, das das Änderungsdatum enthält.
-    - `fk_id_field`: Fremdschlüssel-Feld in der Datenbank.
-    - `fallback_modified_field`: (Optional) Ein alternatives Feld für das Änderungsdatum.
-
-#### 4.2 DB -> Frappe Task (`direction: db_to_frappe`)
-
-- **Wichtig**:  
-  Entweder `table_name` oder `query` muss angegeben werden, damit die Datenquelle eindeutig bestimmt ist.
-
-#### 4.3 Frappe -> DB Task (`direction: frappe_to_db`)
-
-- **Erforderlich**:  
-  Das Feld `table_name` muss angegeben werden, da die Daten in die Datenbank geschrieben werden sollen.
+- **dry_run:** Wenn auf `true` gesetzt, werden keine Änderungen an den Systemen vorgenommen – die Ausführung erfolgt als Simulation.
+- **timestamp_file:** Pfad zur Datei, in der Zeitstempel der letzten Synchronisation gespeichert werden.
+- **timestamp_buffer_seconds:** Zeitpuffer in Sekunden, um zeitliche Ungenauigkeiten bei der Synchronisation zu kompensieren.
 
 ## Setup Lokal
 

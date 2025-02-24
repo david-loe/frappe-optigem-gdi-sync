@@ -1,84 +1,82 @@
-# Globaler Schalter: Legt fest, ob Aktionen als Trockenlauf (kein tatsächliches Schreiben/Ändern) ausgeführt werden.
-dry_run: false
-
-# Definition der Datenbanken. Jeder Eintrag muss einen eindeutigen Namen als Schlüssel haben.
 databases:
-  # Beispiel für eine MSSQL-Datenbank
-  mssql_db:
-    type: mssql # Datenbanktyp: "mssql"
-    database: "my_mssql_db" # Name der Datenbank
-    user: "username" # Benutzername für die Authentifizierung
-    password: "password" # Passwort
-    server: "mssql_server_address" # Serveradresse oder IP
-    trust_server_certificate: true # Falls das Serverzertifikat vertraut werden soll
+  main_db:
+    type: mssql
+    server: mssql.example.com
+    trust_server_certificate: true
+    database: mydatabase
+    user: dbuser
+    password: securepassword
+  backup_db:
+    type: firebird
+    host: firebird.example.com
+    port: 3050
+    charset: UTF8
+    database: backupdb
+    user: fbuser
+    password: anotherpassword
 
-  # Beispiel für eine Firebird-Datenbank
-  firebird_db:
-    type: firebird # Datenbanktyp: "firebird"
-    database: "my_firebird_db" # Name der Datenbank
-    user: "username" # Benutzername für die Authentifizierung
-    password: "password" # Passwort
-    host: "firebird_server_address" # Hostadresse
-    port: 3050 # Portnummer
-    charset: "UTF8" # Zeichensatz (Standard: UTF8)
-
-# Frappe API Konfiguration
 frappe:
-  api_key: "your_api_key" # API-Schlüssel
-  api_secret: "your_api_secret" # API-Geheimnis
-  limit_page_length: 20 # Limit für Seitenlänge bei Abfragen (Standard: 20)
+  api_key: your_frappe_api_key
+  api_secret: your_frappe_api_secret
+  limit_page_length: 50
+  url: https://frappe.example.com
 
-# Definition der Tasks (Aufgaben)
 tasks:
-  # --- Bidirectional Sync ---
-  - direction: bidirectional # Task-Richtung: bidirectional
-    name: "Bidirectional Sync" # Name der Task (Standardwert ist "Bidirectional Sync")
-    doc_type: "https://your.frappe.url/api/resource/Somedoc_type" # API-Endpunkt in Frappe
-    db_name: "mssql_db" # Verweis auf eine der in 'databases' definierten Datenbanken
-    mapping: # Feld-Mapping: Schlüssel entspricht dem Frappe-Feld, Wert dem DB-Feld
-      id: "ID"
-      modified: "LastModified"
-    key_fields: # Liste der Schlüssel-Felder, die im Mapping vorhanden sein müssen
-      - id
-    table_name: "some_table" # Name der Tabelle in der Datenbank
-    process_all: false # Falls true, werden alle Datensätze verarbeitet
-    create_new: true # Falls true, werden neue Einträge in Frappe erstellt, wenn nicht vorhanden
-    # Zusätzliche Einstellungen für den Frappe-Zugriff in diesem Task:
+  sync_users:
+    direction: bidirectional
+    doc_type: User
+    db_name: main_db
+    mapping:
+      name: username
+      email: user_email
+    key_fields:
+      - name
+    table_name: users
     frappe:
-      modified_field: "modified" # Feld in Frappe, das das Änderungsdatum enthält
-      fk_id_field: "frappe_fk" # Fremdschlüssel-Feld in Frappe
-    # Zusätzliche Einstellungen für den Datenbankzugriff in diesem Task:
+      modified_field: modified
+      id_field: name
+      datetime_fields: [modified]
+      int_fields: [user_id]
+      fk_id_field: user_id
     db:
-      modified_field: "modified" # Feld in der Datenbank, das das Änderungsdatum enthält
-      fk_id_field: "db_fk" # Fremdschlüssel-Feld in der Datenbank
-      fallback_modified_field: "fallback_modified" # Optionales Fallback-Feld für das Änderungsdatum
+      modified_field: last_modified
+      fallback_modified_field: created_at
+      fk_id_field: user_id
+      id_field: id
+    delete: true
+    datetime_comparison_accuracy_milliseconds: 100
 
-  # --- DB -> Frappe Task ---
-  - direction: db_to_frappe # Task-Richtung: db_to_frappe
-    name: "DB -> Frappe"
-    doc_type: "https://your.frappe.url/api/resource/Otherdoc_type"
-    db_name: "firebird_db"
+  import_orders:
+    direction: db_to_frappe
+    doc_type: Order
+    db_name: backup_db
     mapping:
-      id: "ID"
-      modified: "LastModified"
+      order_id: id
+      order_date: date
     key_fields:
-      - id
-    # Für db_to_frappe muss entweder 'table_name' oder 'query' angegeben werden:
-    table_name: "other_table"
-    # query: "SELECT * FROM other_table WHERE condition = true"
+      - order_id
+    table_name: orders
+    frappe:
+      modified_field: modified
+      id_field: name
+      datetime_fields: [modified]
+      int_fields: []
+    db:
+      modified_field: updated_at
+      fallback_modified_field: null
     process_all: true
-    create_new: false
 
-  # --- Frappe -> DB Task ---
-  - direction: frappe_to_db # Task-Richtung: frappe_to_db
-    name: "Frappe -> DB"
-    doc_type: "https://your.frappe.url/api/resource/Anotherdoc_type"
-    db_name: "mssql_db"
+  export_invoices:
+    direction: frappe_to_db
+    doc_type: Invoice
+    db_name: main_db
     mapping:
-      id: "ID"
-      modified: "LastModified"
+      invoice_number: number
+      amount: total
     key_fields:
-      - id
-    table_name: "another_table" # In diesem Task muss 'table_name' angegeben werden
-    process_all: false
-    create_new: false
+      - invoice_number
+    table_name: invoices
+
+dry_run: false
+timestamp_file: timestamps.yaml
+timestamp_buffer_seconds: 15
