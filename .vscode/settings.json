@@ -1,0 +1,34 @@
+{
+  "sqltools.connections": [
+    {
+      "mssqlOptions": {
+        "appName": "SQLTools",
+        "useUTC": true,
+        "encrypt": true
+      },
+      "previewLimit": 50,
+      "server": "localhost",
+      "port": 1433,
+      "driver": "MSSQL",
+      "name": "TODO: Create Database",
+      "username": "SA",
+      "password": "YourStrong@Passw0rd"
+    },
+    {
+      "mssqlOptions": {
+        "appName": "SQLTools",
+        "useUTC": true,
+        "encrypt": true
+      },
+      "previewLimit": 50,
+      "server": "localhost",
+      "port": 1433,
+      "driver": "MSSQL",
+      "name": "Test DB",
+      "username": "SA",
+      "password": "YourStrong@Passw0rd",
+      "database": "TestDB",
+      "connectionTimeout": 1000
+    }
+  ]
+}

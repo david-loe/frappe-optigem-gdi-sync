@@ -1,0 +1,39 @@
+databases:
+  test_db:
+    type: mssql
+    server: mssql
+    database: TestDB
+    user: SA
+    password: YourStrong@Passw0rd
+    trust_server_certificate: true
+
+frappe:
+  api_key: your_api_key
+  api_secret: your_api_secret
+  url: http://frappe:5050/
+
+tasks:
+  - doc_type: Contact
+    db_name: test_db
+    table_name: Contact
+    mapping:
+      db_id: ContactID
+      name: fk
+      vorname: Vorname
+      nachname: Nachname
+      email: Email
+      tel: Telefon
+      modified: Änderung
+    direction: bidirectional
+    key_fields:
+      - db_id
+      - name
+
+    frappe:
+      modified_field: modified
+      fk_id_field: db_id
+    db:
+      modified_field: Änderung
+      fk_id_field: fk
+      id_field: ContactID
+      fallback_modified_field: Anlage

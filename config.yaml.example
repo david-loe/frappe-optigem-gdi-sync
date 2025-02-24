@@ -1,51 +1,82 @@
-firebird:
-  db1:
-    host: localhost
-    port: 3050
-    database: /path/to/database1.fdb
-    user: sysdba
-    password: masterkey
-  db2:
-    host: localhost
-    port: 3050
-    database: /path/to/database2.fdb
-    user: sysdba
-    password: masterkey
-
-mssql:
-  db1:
-    server: localhost
-    database: mydatabase1
-    user: sa
-    password: mypassword
+databases:
+  main_db:
+    type: mssql
+    server: mssql.example.com
     trust_server_certificate: true
-  db2:
-    server: localhost
-    database: mydatabase2
-    user: sa
-    password: mypassword
+    database: mydatabase
+    user: dbuser
+    password: securepassword
+  backup_db:
+    type: firebird
+    host: firebird.example.com
+    port: 3050
+    charset: UTF8
+    database: backupdb
+    user: fbuser
+    password: anotherpassword
 
-frappe_auth:
-  api_key: your_api_key
-  api_secret: your_api_secret
+frappe:
+  api_key: your_frappe_api_key
+  api_secret: your_frappe_api_secret
+  limit_page_length: 50
+  url: https://frappe.example.com
 
 tasks:
-  - endpoint: https://frappe.example.com/api/resource/Doctype
-    query: SELECT id, name FROM table
+  sync_users:
+    direction: bidirectional
+    doc_type: User
+    db_name: main_db
     mapping:
-      frappe_field_1: id
-      frappe_field_2: name
-    db_type: firebird
-    db_name: db1
-    direction: db_to_frappe
-    key_fields: [frappe_field_1]
+      name: username
+      email: user_email
+    key_fields:
+      - name
+    table_name: users
+    frappe:
+      modified_field: modified
+      id_field: name
+      datetime_fields: [modified]
+      int_fields: [user_id]
+      fk_id_field: user_id
+    db:
+      modified_field: last_modified
+      fallback_modified_field: created_at
+      fk_id_field: user_id
+      id_field: id
+    delete: true
+    datetime_comparison_accuracy_milliseconds: 100
 
-  - endpoint: https://frappe.example.com/api/resource/OtherDoctype
-    table_name: my_table
+  import_orders:
+    direction: db_to_frappe
+    doc_type: Order
+    db_name: backup_db
     mapping:
-      frappe_field_a: code
-      frappe_field_b: description
-    db_type: mssql
-    db_name: db2
+      order_id: id
+      order_date: date
+    key_fields:
+      - order_id
+    table_name: orders
+    frappe:
+      modified_field: modified
+      id_field: name
+      datetime_fields: [modified]
+      int_fields: []
+    db:
+      modified_field: updated_at
+      fallback_modified_field: null
+    process_all: true
+
+  export_invoices:
     direction: frappe_to_db
-    key_fields: [code]
+    doc_type: Invoice
+    db_name: main_db
+    mapping:
+      invoice_number: number
+      amount: total
+    key_fields:
+      - invoice_number
+    table_name: invoices
+
+dry_run: false
+timestamp_file: timestamps.yaml
+timestamp_buffer_seconds: 15

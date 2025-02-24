@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  sync:
+    build: ..
+    volumes:
+      - ./config.yaml:/config.yaml:ro
+      - ./timestamps.yaml:/usr/src/app/timestamps.yaml
+    command: --config /config.yaml --loglevel debug
+    env_file:
+      - ../.env
+  mssql:
+    image: mcr.microsoft.com/azure-sql-edge
+    environment:
+      MSSQL_SA_PASSWORD: "YourStrong@Passw0rd" # Wähle ein sicheres Passwort
+      ACCEPT_EULA: Y
+      MSSQL_RUNTIME_LOG_LEVEL: 0
+      RuntimeLogLevel: 0
+    ports:
+      - "1433:1433"
+    volumes:
+      - db_data:/var/opt/mssql
+
+  frappe:
+    build: ./frappe_api
+    ports:
+      - "5050:5050"
+    environment:
+      # Falls Deine Test-Frappe-App Umgebungsvariablen benötigt, hier definieren
+      FLASK_ENV: development
+
+volumes:
+  db_data:
