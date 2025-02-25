@@ -30,35 +30,31 @@ class SyncTaskBase(Generic[T], ABC):
         if self.dry_run:
             logging.info(f"DRY_RUN: {self.config.db_name}\n{format_query(sql, params)}")
             return
+        logging.debug(f"Anfrage an {self.config.db_name}\n{format_query(sql, params)}")
+        cursor = self.db_conn.cursor()
         try:
-            logging.debug(
-                f"""Anfrage an {self.config.db_name}
-                    {format_query(sql, params)}"""
-            )
-            cursor = self.db_conn.cursor()
-            try:
-                cursor.execute(sql, params)
-            finally:
-                cursor.close()
+            cursor.execute(sql, params)
             self.db_conn.commit()
             logging.info(success_msg)
         except Exception as e:
-            logging.error(f"Fehler bei der Ausführung von SQL: {e}")
+            logging.error(f"Fehler beim Ausführen der Query '{format_query(sql, params)}'\n{e}")
             self.db_conn.rollback()
+        finally:
+            cursor.close()
 
     def _execute_select_query(self, sql: str, params: list = []):
         db_records: list[dict[str, any]] = []
+        logging.debug(f"""Anfrage an {self.config.db_name}\n{format_query(sql, params)}""")
         cursor = self.db_conn.cursor()
         try:
-            logging.debug(
-                f"""Anfrage an {self.config.db_name}
-                    {format_query(sql, params)}"""
-            )
             cursor.execute(sql, params)
             db_columns = [desc[0] for desc in cursor.description]
             for row in cursor.fetchall():
                 rec = dict(zip(db_columns, row))
                 db_records.append(rec)
+        except Exception as e:
+            logging.error(f"Fehler beim Ausführen der Query '{format_query(sql, params)}'\n{e}")
+            self.db_conn.rollback()
         finally:
             cursor.close()
 

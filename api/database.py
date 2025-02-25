@@ -72,19 +72,26 @@ class DatabaseConnection:
 
 def get_time_zone(db_conn: fdb.Connection | pyodbc.Connection):
     minutes: int = None
+    cursor = db_conn.cursor()
     if isinstance(db_conn, fdb.Connection):
-        cursor = db_conn.cursor()
+        sql = "SELECT CURRENT_TIMESTAMP FROM RDB$DATABASE;"
         try:
-            cursor.execute("SELECT CURRENT_TIMESTAMP FROM RDB$DATABASE;")
+            cursor.execute(sql)
             current_db_time: datetime = cursor.fetchone()[0]
             minutes = round((current_db_time - datetime.now(timezone.utc).replace(tzinfo=None)).total_seconds() / 60)
+        except Exception as e:
+            logging.error(f"Fehler beim Ausführen der Query '{sql}'")
+            logging.error(e)
         finally:
             cursor.close()
     else:
-        cursor = db_conn.cursor()
+        sql = "SELECT DATEPART(TZOFFSET, SYSDATETIMEOFFSET()) AS TimeZoneOffsetMinutes;"
         try:
-            cursor.execute("SELECT DATEPART(TZOFFSET, SYSDATETIMEOFFSET()) AS TimeZoneOffsetMinutes;")
+            cursor.execute(sql)
             minutes = cursor.fetchone()[0]
+        except Exception as e:
+            logging.error(f"Fehler beim Ausführen der Query '{sql}'")
+            logging.error(e)
         finally:
             cursor.close()
     if minutes is not None:

@@ -1,5 +1,6 @@
 from datetime import datetime
 import logging
+from api.database import format_query
 from config import FrappeToDbTaskConfig
 from sync.task import SyncTaskBase
 
@@ -21,6 +22,9 @@ class FrappeToDbSyncTask(SyncTaskBase[FrappeToDbTaskConfig]):
             try:
                 cursor.execute(select_sql, params)
                 exists = cursor.fetchone()[0] > 0
+            except Exception as e:
+                logging.error(f"Fehler beim Ausführen der Query '{format_query(select_sql, params)}'")
+                logging.error(e)
             finally:
                 cursor.close()
 
