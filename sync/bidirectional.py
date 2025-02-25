@@ -8,8 +8,8 @@ from sync.task import SyncTaskBase
 
 class BidirectionalSyncTask(SyncTaskBase[BidirectionalTaskConfig]):
     def sync(self, last_sync_date_utc: datetime | None = None):
-        frappe_dict = self.get_frappe_key_record_dict(last_sync_date_utc)
-        db_dict = self.get_db_key_record_dict(last_sync_date_utc)
+        frappe_dict = self.get_frappe_key_record_dict(self.get_frappe_records(last_sync_date_utc))
+        db_dict = self.get_db_key_record_dict(self.get_db_records(last_sync_date_utc))
 
         # check for same types in key
         if len(frappe_dict) > 0 and len(db_dict) > 0:
@@ -18,8 +18,30 @@ class BidirectionalSyncTask(SyncTaskBase[BidirectionalTaskConfig]):
             if not self.compare_key_tuple_structure(first_frappe_key, first_db_key):
                 raise ValueError("Die Schlüssel-Tupel haben einen unterschiedlichen Typaufbau!")
 
+        # Falls nur die letzten Änderungen synchronisiert werden, muss geprüft werden, ob die Gegenseite nicht doch Einträge enthält
+        if last_sync_date_utc:
+            missing_db_keys = frappe_dict.keys() - db_dict.keys()
+            missing_db_ids = [
+                frappe_dict[key].get(self.config.frappe.fk_id_field)
+                for key in missing_db_keys
+                if frappe_dict[key].get(self.config.frappe.fk_id_field)
+            ]
+            missing_frappe_keys = db_dict.keys() - frappe_dict.keys()
+            missing_frappe_ids = [
+                db_dict[key].get(self.config.db.fk_id_field)
+                for key in missing_frappe_keys
+                if db_dict[key].get(self.config.db.fk_id_field)
+            ]
+            if missing_frappe_ids:
+                additional_frappe_records = self.get_frappe_records_by_ids(missing_frappe_ids)
+                frappe_dict.update(self.get_frappe_key_record_dict(additional_frappe_records))
+            if missing_db_ids:
+                additional_db_records = self.get_db_records_by_ids(missing_db_ids)
+                db_dict.update(self.get_db_key_record_dict(additional_db_records))
+
         # Alle vorhandenen Schlüssel zusammenführen
         all_keys = set(frappe_dict.keys()).union(db_dict.keys())
+
         for key in all_keys:
             frappe_rec = frappe_dict.get(key)
             db_rec = db_dict.get(key)

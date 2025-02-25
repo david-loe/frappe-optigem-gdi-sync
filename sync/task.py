@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
+import json
 import logging
 from typing import TypeVar, Generic
 from api.database import DatabaseConnection, format_query, get_time_zone
@@ -57,7 +58,7 @@ class SyncTaskBase(Generic[T], ABC):
             self.db_conn.rollback()
         finally:
             cursor.close()
-
+        logging.debug(f"Insgesamt {len(db_records)} Datensätze gefunden.")
         return db_records
 
     def map_frappe_to_db(self, record: dict, warns=True) -> dict:
@@ -117,6 +118,23 @@ class SyncTaskBase(Generic[T], ABC):
                 data[k] = v
         return data, keys
 
+    def _cast_frappe_record(self, record: dict):
+        for field in self.config.frappe.datetime_fields:
+            if field in record and isinstance(record[field], str):
+                try:
+                    record[field] = datetime.fromisoformat(record[field])
+                except ValueError:
+                    # Falls der String kein gültiges ISO-Datum ist, bleibt der Wert unverändert.
+                    pass
+        for field in self.config.frappe.int_fields:
+            if field in record and isinstance(record[field], str):
+                try:
+                    record[field] = int(record[field])
+                except ValueError:
+                    # Falls der String kein gültiges ISO-Datum ist, bleibt der Wert unverändert.
+                    pass
+        return record
+
     def get_frappe_records(self, last_sync_date_utc: datetime | None = None) -> list:
         """
         Frappe-Datensätze abrufen
@@ -128,24 +146,18 @@ class SyncTaskBase(Generic[T], ABC):
         frappe_response = self.frappe_api.get_all_data(self.config.doc_type, filters)
         records = frappe_response.get("data", [])
         for rec in records:
-            for field in self.config.frappe.datetime_fields:
-                if field in rec and isinstance(rec[field], str):
-                    try:
-                        rec[field] = datetime.fromisoformat(rec[field])
-                    except ValueError:
-                        # Falls der String kein gültiges ISO-Datum ist, bleibt der Wert unverändert.
-                        pass
-            for field in self.config.frappe.int_fields:
-                if field in rec and isinstance(rec[field], str):
-                    try:
-                        rec[field] = int(rec[field])
-                    except ValueError:
-                        # Falls der String kein gültiges ISO-Datum ist, bleibt der Wert unverändert.
-                        pass
+            self._cast_frappe_record(rec)
         return records
 
-    def get_frappe_key_record_dict(self, last_sync_date_utc: datetime | None = None):
-        frappe_records = self.get_frappe_records(last_sync_date_utc)
+    def get_frappe_records_by_ids(self, ids: list[str | int]):
+        filters = [f'["name", "in", {json.dumps(ids)}]']
+        frappe_response = self.frappe_api.get_all_data(self.config.doc_type, filters)
+        records = frappe_response.get("data", [])
+        for rec in records:
+            self._cast_frappe_record(rec)
+        return records
+
+    def get_frappe_key_record_dict(self, frappe_records: list[dict[str, any]]):
         frappe_dict: dict[tuple, dict[str, any]] = {}
         for rec in frappe_records:
             key = self.extract_key_from_frappe(rec)
@@ -175,8 +187,20 @@ class SyncTaskBase(Generic[T], ABC):
 
         return self._execute_select_query(select_sql, params)
 
-    def get_db_key_record_dict(self, last_sync_date_utc: datetime | None = None):
-        db_records = self.get_db_records(last_sync_date_utc)
+    def get_db_records_by_ids(self, ids: list[str | int]):
+        select_sql = f"SELECT * FROM {self.config.table_name}"
+        id_selector = f"{self.config.db.id_field} IN ({', '.join(['?']*len(ids))})"
+
+        if self.config.query:
+            select_sql = self.config.query
+
+        if "WHERE" in select_sql:
+            select_sql = select_sql + f" AND {id_selector}"
+        else:
+            select_sql = select_sql + f" WHERE {id_selector}"
+        return self._execute_select_query(select_sql, ids)
+
+    def get_db_key_record_dict(self, db_records: list[dict[str, any]]):
         db_dict: dict[tuple, dict[str, any]] = {}
         for rec in db_records:
             key = self.extract_key_from_db(rec)
