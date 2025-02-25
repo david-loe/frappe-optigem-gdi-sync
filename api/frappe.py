@@ -28,6 +28,9 @@ class FrappeAPI:
             # To old modified date leads to 413 frappe.exceptions.TimestampMismatchError and frappe overrides it anyway
             if "modified" in data:
                 data.pop("modified")
+            # sending creation date leads to 417 frappe.exceptions.CannotChangeConstantError and frappe overrides it anyway
+            if "creation" in data:
+                data.pop("creation")
             json_data = json.dumps(data, cls=CustomEncoder)
             if self.dry_run:
                 logging.info(

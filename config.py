@@ -36,6 +36,7 @@ class FrappeConfig(FrappeAuthConfig):
 
 class TaskFrappeBase(BaseModel):
     modified_field: Literal["modified"] = "modified"
+    creation_field: Literal["creation"] = "creation"
     id_field: Literal["name"] = "name"
     # All Date fields that will be converted to datetime after get (due to json)
     datetime_fields: list[str] = []
@@ -45,6 +46,8 @@ class TaskFrappeBase(BaseModel):
     def model_post_init(self, __context):
         if self.modified_field not in self.datetime_fields:
             self.datetime_fields.append(self.modified_field)
+        if self.creation_field not in self.datetime_fields:
+            self.datetime_fields.append(self.creation_field)
 
 
 class TaskFrappeBidirectional(TaskFrappeBase):
