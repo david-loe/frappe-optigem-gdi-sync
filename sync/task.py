@@ -192,7 +192,8 @@ class SyncTaskBase(Generic[T], ABC):
         id_selector = f"{self.config.db.id_field} IN ({', '.join(['?']*len(ids))})"
 
         if self.config.query:
-            select_sql = self.config.query
+            q = self.config.query.strip()
+            select_sql = q[:-1] if q.endswith(";") else q
 
         if "WHERE" in select_sql:
             select_sql = select_sql + f" AND {id_selector}"
