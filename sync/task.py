@@ -80,9 +80,17 @@ class SyncTaskBase(Generic[T], ABC):
 
                     # use value_mapping
                     if frappe_field in self.config.value_mapping:
+                        found = False
                         for f_v, db_v in self.config.value_mapping[frappe_field].items():
                             if f_v == value:
                                 value = db_v
+                                found = True
+                                break
+                        if not found and self.config.use_strict_value_mapping:
+                            logging.debug(
+                                f"Kein Wert in value_mapping gefunden für frappe-Feld '{frappe_field}' und Wert '{value}'."
+                            )
+                            continue  # skip value
                     db_data[db_column] = value
             elif warns:
                 logging.warning(f"Feld '{frappe_field}' fehlt im Frappe-Datensatz {record}.")
@@ -99,9 +107,17 @@ class SyncTaskBase(Generic[T], ABC):
                 if value is not None:
                     # use value_mapping
                     if frappe_field in self.config.value_mapping:
+                        found = False
                         for f_v, db_v in self.config.value_mapping[frappe_field].items():
                             if db_v == value:
                                 value = f_v
+                                found = True
+                                break
+                        if not found and self.config.use_strict_value_mapping:
+                            logging.debug(
+                                f"Kein Wert in value_mapping gefunden für DB-Feld '{db_column}' und Wert '{value}'."
+                            )
+                            continue  # skip value
 
                     frappe_data[frappe_field] = value
             elif warns:

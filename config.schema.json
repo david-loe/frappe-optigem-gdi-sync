@@ -155,6 +155,10 @@
                   "type": "boolean",
                   "default": true
                 },
+                "use_strict_value_mapping": {
+                  "type": "boolean",
+                  "default": false
+                },
                 "value_mapping": {
                   "type": "object",
                   "patternProperties": {
@@ -304,6 +308,10 @@
                   "type": "boolean",
                   "default": true
                 },
+                "use_strict_value_mapping": {
+                  "type": "boolean",
+                  "default": false
+                },
                 "value_mapping": {
                   "type": "object",
                   "patternProperties": {
@@ -443,6 +451,10 @@
                 "use_last_sync_date": {
                   "type": "boolean",
                   "default": true
+                },
+                "use_strict_value_mapping": {
+                  "type": "boolean",
+                  "default": false
                 },
                 "value_mapping": {
                   "type": "object",

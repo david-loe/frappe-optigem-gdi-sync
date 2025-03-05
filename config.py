@@ -74,6 +74,7 @@ class TaskBase(BaseModel):
     query_with_timestamp: Optional[str] = None
     create_new: bool = True
     use_last_sync_date: bool = True
+    use_strict_value_mapping: bool = False
 
     @model_validator(mode="after")
     def check_key_fields_in_mapping(self) -> "TaskBase":
