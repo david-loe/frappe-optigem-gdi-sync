@@ -182,7 +182,6 @@
                   "properties": {
                     "modified_field": {
                       "type": "string",
-                      "const": "modified",
                       "default": "modified"
                     },
                     "id_field": {
@@ -332,7 +331,6 @@
                   "properties": {
                     "modified_field": {
                       "type": "string",
-                      "const": "modified",
                       "default": "modified"
                     },
                     "id_field": {
@@ -473,7 +471,6 @@
                   "properties": {
                     "modified_field": {
                       "type": "string",
-                      "const": "modified",
                       "default": "modified"
                     },
                     "id_field": {

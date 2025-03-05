@@ -142,7 +142,7 @@ class SyncTaskBase(Generic[T], ABC):
         filters = []
         if last_sync_date_utc:
             last_sync_date = last_sync_date_utc + self.frappe_tz_delta
-            filters.append(f'["modified", ">=", "{last_sync_date.isoformat()}"]')
+            filters.append(f'["{self.config.frappe.modified_field}", ">=", "{last_sync_date.isoformat()}"]')
         frappe_response = self.frappe_api.get_all_data(self.config.doc_type, filters)
         records = frappe_response.get("data", [])
         for rec in records:
