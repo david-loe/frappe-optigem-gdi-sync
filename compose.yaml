@@ -5,3 +5,6 @@ services:
       - ./config.yaml:/config.yaml:ro
     # entrypoint: ["python", "./gen_hashes.py"] # for generating hashes
     command: --config /config.yaml # --loglevel debug
+    environment:
+      # CRON: "0 5 * * *"
+      TZ: Europe/Berlin
