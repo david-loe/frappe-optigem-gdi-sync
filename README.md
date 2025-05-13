@@ -6,14 +6,14 @@ Syncronisation zwischen Frappe und Optigem / GDI Lohn & Gehalt
 
 Mit docker
 
-```
+```bash
 docker run -v ./config.yaml:/config.yaml davidloe/frappe-optigem-gdi-sync --config /config.yaml
 ```
 
 oder lokal, [setup](#setup-local) und dann:
 
-```
-synchronize.py
+```bash
+python3 synchronize.py
 ```
 
 ```
@@ -24,9 +24,24 @@ options:
   --dry-run            Führt den Sync im Dry-Run-Modus aus (keine Änderungen werden vorgenommen)
 ```
 
+## 🕒 Cron-Modus
+
+Wenn die Umgebungsvariable `CRON` gesetzt ist, startet der Container im **Cron-Modus**.
+Dabei wird der übergebene Wert von `CRON` als [Cron-Expression](https://crontab.guru/) interpretiert und zur Steuerung des Ausführungszeitpunkts verwendet.
+
+Beispiel:
+
+```bash
+docker run -e CRON="*/10 * * * *" -v ./config.yaml:/config.yaml davidloe/frappe-optigem-gdi-sync --config /config.yaml
+```
+
+→ Führt das Skript alle 10 Minuten aus.
+
+Wenn `CRON` **nicht gesetzt ist**, wird das Skript **einmalig direkt beim Containerstart** ausgeführt.
+
 ## Config anpassen
 
-```
+```bash
 cp config.yaml.example config.yaml
 ```
 
