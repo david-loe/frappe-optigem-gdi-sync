@@ -96,6 +96,8 @@ Die `tasks`-Sektion definiert die zu synchronisierenden Aufgaben. Jede Aufgabe w
   - **db:** Enthält Datenbankspezifische Einstellungen, zusätzlich:
     - **fk_id_field:** Fremdschlüssel-Feld.
     - **id_field:** Identifikationsfeld in der Datenbank.
+    - **manual_id_sequence:** Manuelles hochzählen von dem Datenbank Index (Standard: false)
+    - **manual_id_sequence_max** Maximaler Wert für den manuellen Index
   - **delete:** Gibt an, ob Datensätze gelöscht werden sollen (Standard: true).
   - **datetime_comparison_accuracy_milliseconds:** Genauigkeit beim Vergleich von Datums-/Zeitfeldern in Millisekunden.
 
@@ -123,7 +125,7 @@ Zusätzlich gibt es in allen Aufgaben (TaskBase) folgende allgemeine Optionen:
 ### 4. Allgemeine Konfiguration
 
 - **dry_run:** Wenn auf `true` gesetzt, werden keine Änderungen an den Systemen vorgenommen – die Ausführung erfolgt als Simulation.
-- **timestamp_file:** Pfad zur Datei, in der Zeitstempel der letzten Synchronisation gespeichert werden.
+- **timestamp_file:** Pfad zur Datei, in der Zeitstempel der letzten Synchronisation gespeichert werden. (relativ zum Ordner der config Datei)
 - **timestamp_buffer_seconds:** Zeitpuffer in Sekunden, um zeitliche Ungenauigkeiten bei der Synchronisation zu kompensieren.
 
 ## Setup Lokal

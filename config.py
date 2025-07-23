@@ -56,9 +56,14 @@ class TaskDbBase(BaseModel):
     fallback_modified_field: Optional[str] = None
 
 
-class TaskDbBidirectional(TaskDbBase):
-    fk_id_field: str
+class TaskDbFrappeToDb(TaskDbBase):
+    manual_id_sequence: bool = False
+    manual_id_sequence_max: Optional[int] = None
     id_field: str
+
+
+class TaskDbBidirectional(TaskDbFrappeToDb):
+    fk_id_field: str
 
 
 class TaskBase(BaseModel):
@@ -124,6 +129,7 @@ class DbToFrappeTaskConfig(TaskBase):
 class FrappeToDbTaskConfig(TaskBase):
     direction: Literal["frappe_to_db"]
     table_name: str
+    db: TaskDbFrappeToDb
 
 
 TaskConfig = Annotated[

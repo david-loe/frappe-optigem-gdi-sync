@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import logging
+import os
 
 from api.database import DatabaseConnection
 from config import Config, TaskConfig
@@ -14,14 +15,16 @@ from utils.yaml_database import YamlDatabase
 
 
 class SyncManager:
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, config_path: str):
         self.config = config
         if config.dry_run:
             logging.info("Sync läuft im Dry-Run Modus")
         self.db_conn = DatabaseConnection(config.databases)
         self.frappe_api = FrappeAPI(config.frappe, config.dry_run)
         self.tasks = self._load_tasks(config.tasks)
-        self.timestamp_db = YamlDatabase(config.timestamp_file)
+        config_dir = os.path.dirname(config_path)
+        timestamp_path = os.path.join(config_dir, config.timestamp_file)
+        self.timestamp_db = YamlDatabase(timestamp_path)
 
     def _load_tasks(self, task_configs: dict[str, TaskConfig]):
         tasks: list[SyncTaskBase] = []

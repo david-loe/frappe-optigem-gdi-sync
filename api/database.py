@@ -47,7 +47,7 @@ class DatabaseConnection:
                 f"PWD={db_config.password};"
                 f"TrustServerCertificate={'yes' if db_config.trust_server_certificate else 'no'}"
             )
-            conn = pyodbc.connect(mssql_conn_str)
+            conn = pyodbc.connect(mssql_conn_str, autocommit=False)
             logging.info(f"Verbindung zur MSSQL-Datenbank '{db_name}' hergestellt.")
             get_time_zone(conn)
             return conn
@@ -98,7 +98,7 @@ def get_time_zone(db_conn: fdb.Connection | pyodbc.Connection):
         return timedelta(minutes=minutes)
 
 
-def format_query(query, params):
+def format_query(query: str, params: list):
     # Diese Funktion ersetzt die Platzhalter in der Abfrage durch die Parameterwerte
     # für Logging-Zwecke. Sie stellt sicher, dass Strings korrekt gequotet werden.
     from datetime import datetime, date

@@ -233,6 +233,13 @@
                     },
                     "id_field": {
                       "type": "string"
+                    },
+                    "manual_id_sequence": {
+                      "type": "boolean",
+                      "default": false
+                    },
+                    "manual_id_sequence_max": {
+                      "type": "integer"
                     }
                   },
                   "required": [

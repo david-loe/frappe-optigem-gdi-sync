@@ -87,7 +87,7 @@ class SyncTaskBase(Generic[T], ABC):
                                 found = True
                                 break
                         if not found and self.config.use_strict_value_mapping:
-                            logging.debug(
+                            logging.warning(
                                 f"Kein Wert in value_mapping gefunden für frappe-Feld '{frappe_field}' und Wert '{value}'."
                             )
                             continue  # skip value
@@ -114,7 +114,7 @@ class SyncTaskBase(Generic[T], ABC):
                                 found = True
                                 break
                         if not found and self.config.use_strict_value_mapping:
-                            logging.debug(
+                            logging.warning(
                                 f"Kein Wert in value_mapping gefunden für DB-Feld '{db_column}' und Wert '{value}'."
                             )
                             continue  # skip value
@@ -289,11 +289,51 @@ class SyncTaskBase(Generic[T], ABC):
         """
         if self.config.create_new:
             db_data = self.map_frappe_to_db(frappe_rec)
-            columns = ", ".join(db_data.keys())
-            placeholders = ", ".join(["?"] * len(db_data))
-            sql = f"INSERT INTO {self.config.table_name} ({columns}) VALUES ({placeholders})"
-            params = list(db_data.values())
-            self.execute_query(sql, params, f"Neuer DB-Datensatz wurde eingefügt.")
+
+            def insert_query(data: dict):
+                columns = ", ".join(data.keys())
+                placeholders = ", ".join(["?"] * len(data))
+                sql = f"INSERT INTO {self.config.table_name} ({columns}) VALUES ({placeholders});"
+                params = list(data.values())
+                return sql, params
+
+            if self.config.db.manual_id_sequence:
+                conn = self.db_conn
+                cursor = conn.cursor()
+                try:
+                    sql_next = (
+                        f"SELECT ISNULL(MAX({self.config.db.id_field}), 0) + 1 FROM {self.config.table_name}"
+                        f"{'' if self.config.db.manual_id_sequence_max is None else f' WHERE {self.config.db.id_field} < {self.config.db.manual_id_sequence_max}'}"
+                        f"{'' if self.dry_run else ' WITH (TABLOCKX, HOLDLOCK)'};"
+                    )
+                    logging.debug(f"Anfrage an {self.config.db_name}\n{format_query(sql_next, [])}")
+                    cursor.execute(sql_next)
+                    next_nr = cursor.fetchone()[0]
+                    if next_nr >= self.config.db.manual_id_sequence_max:
+                        raise Exception(
+                            f"Manuelle errechnete nächste ID ({next_nr}) übersteigt manual_id_sequence_max ({self.config.db.manual_id_sequence_max})"
+                        )
+                    db_data[self.config.db.id_field] = next_nr
+
+                    sql, params = insert_query(db_data)
+                    if self.dry_run:
+                        logging.info(f"DRY_RUN: {self.config.db_name}\n{format_query(sql, params)}")
+                    else:
+                        logging.debug(f"Anfrage an {self.config.db_name}\n{format_query(sql, params)}")
+                        cursor.execute(sql, params)
+                        logging.info(f"Neuer DB-Datensatz mit manueller Id {next_nr} eingefügt.")
+                        self.db_conn.commit()
+
+                except Exception as e:
+                    self.db_conn.rollback()
+                    logging.error(f"Fehler bei manuellem Insert, rolle zurück: {e}")
+                    return None
+
+                finally:
+                    cursor.close()
+            else:
+                sql, params = insert_query(db_data)
+                self.execute_query(sql, params, f"Neuer DB-Datensatz wurde eingefügt.")
 
             where_clause = " AND ".join([f"{k} = ?" for k in db_data.keys()])
             sql_select = f"SELECT * FROM {self.config.table_name} WHERE {where_clause}"

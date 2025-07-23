@@ -41,7 +41,7 @@ def main():
 
     # Dry-Run von den Argumenten setzen
 
-    sync_manager = SyncManager(config)
+    sync_manager = SyncManager(config, args.config)
     sync_manager.run()
 
 
