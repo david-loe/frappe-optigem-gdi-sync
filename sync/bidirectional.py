@@ -101,8 +101,8 @@ class BidirectionalSyncTask(SyncTaskBase[BidirectionalTaskConfig]):
         return timestamp
 
     def update_db_foreign_id(self, db_rec: dict, foreign_id: str):
-        set_clause = f"{self.config.db.fk_id_field} = ?"
-        where_clause = f"{self.config.db.id_field} = ?"
+        set_clause = f"{self.esc_db_col(self.config.db.fk_id_field)} = ?"
+        where_clause = f"{self.esc_db_col(self.config.db.id_field)} = ?"
         sql = f"UPDATE {self.config.table_name} SET {set_clause} WHERE {where_clause}"
         params = [foreign_id, db_rec.get(self.config.db.id_field)]
         self.execute_query(sql, params, f"DB-Datensatz wurde aktualisiert.")
@@ -120,7 +120,7 @@ class BidirectionalSyncTask(SyncTaskBase[BidirectionalTaskConfig]):
 
     def delete_db_record(self, db_rec: dict):
         if self.config.delete:
-            sql = f"DELETE FROM {self.config.table_name} WHERE {self.config.db.id_field} = ?"
+            sql = f"DELETE FROM {self.config.table_name} WHERE {self.esc_db_col(self.config.db.id_field)} = ?"
             self.execute_query(
                 sql,
                 [db_rec[self.config.db.id_field]],

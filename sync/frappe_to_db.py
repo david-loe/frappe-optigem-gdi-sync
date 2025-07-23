@@ -14,7 +14,7 @@ class FrappeToDbSyncTask(SyncTaskBase[FrappeToDbTaskConfig]):
             data, key_values = self.split_frappe_in_data_and_keys(frappe_rec)
 
             # Überprüfen, ob der Datensatz existiert
-            where_clause = " AND ".join([f"{key} = ?" for key in key_values.keys()])
+            where_clause = " AND ".join([f"{self.esc_db_col(key)} = ?" for key in key_values.keys()])
             select_sql = f"SELECT COUNT(*) FROM {self.config.table_name} WHERE {where_clause}"
             params = list(key_values.values())
             exists = False

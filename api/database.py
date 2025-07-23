@@ -9,12 +9,10 @@ from config import DatabaseConfig, FirebirdDatabaseConfig, MssqlDatabaseConfig
 
 class DatabaseConnection:
     def __init__(self, database_configs: dict[str, DatabaseConfig]):
+        self.config = database_configs
         self.connections: dict[str, fdb.Connection | pyodbc.Connection] = {}
-        self._setup_connections(database_configs)
-
-    def _setup_connections(self, database_configs: dict[str, DatabaseConfig]):
-        if database_configs:
-            for db_name, db_config in database_configs.items():
+        if self.config:
+            for db_name, db_config in self.config.items():
                 if db_config.type == "firebird":
                     self.connections[db_name] = self._connect_firebird(db_name, db_config)
                 elif db_config.type == "mssql":
@@ -63,6 +61,18 @@ class DatabaseConnection:
         else:
             logging.error(f"Datenbank '{db_name}' nicht gefunden.")
             return None
+
+    def get_escape_identifier_fn(self, db_name: str):
+        if self.config:
+            for c_db_name, c_db_config in self.config.items():
+                if c_db_name == db_name:
+                    if c_db_config.type == "firebird":
+                        return escape_identifier_firebird
+                    elif c_db_config.type == "mssql":
+                        return escape_identifier_mssql
+
+        logging.error(f"Datenbank '{db_name}' nicht gefunden.")
+        return None
 
     def close_connections(self):
         for db_name, conn in self.connections.items():
@@ -125,3 +135,91 @@ def format_query(query: str, params: list):
         if i < len(formatted_params):
             full_query += formatted_params[i]
     return full_query
+
+
+import re
+
+# Regelmäßige Identifier‑Patterns
+_MSSQL_ID_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_@#$]*$")
+_FIREBIRD_ID_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+# (Teil-)Mengen gängiger Reserved Words – bitte bei Bedarf vollständig machen!
+_MSSQL_RESERVED = {
+    "ADD",
+    "ALTER",
+    "AND",
+    "AS",
+    "BEGIN",
+    "BETWEEN",
+    "BY",
+    "CREATE",
+    "DELETE",
+    "DROP",
+    "EXEC",
+    "FROM",
+    "GROUP",
+    "HAVING",
+    "INSERT",
+    "INTO",
+    "JOIN",
+    "LIKE",
+    "NOT",
+    "NULL",
+    "OR",
+    "ORDER",
+    "SELECT",
+    "SET",
+    "TABLE",
+    "UPDATE",
+    "WHERE",
+}
+
+_FIREBIRD_RESERVED = {
+    "ADD",
+    "ALTER",
+    "AND",
+    "AS",
+    "AVG",
+    "BETWEEN",
+    "BY",
+    "CHECK",
+    "CREATE",
+    "DELETE",
+    "DISTINCT",
+    "FROM",
+    "GROUP",
+    "HAVING",
+    "INSERT",
+    "INTO",
+    "JOIN",
+    "LIKE",
+    "NOT",
+    "NULL",
+    "OR",
+    "ORDER",
+    "SELECT",
+    "SUM",
+    "UPDATE",
+    "WHERE",
+}
+
+
+def escape_identifier_mssql(name: str) -> str:
+    nm = str(name)
+    up = nm.upper()
+    safe = _MSSQL_ID_RE.match(nm) and up not in _MSSQL_RESERVED
+    print(name, safe)
+    if safe:
+        return nm
+    # mit [ ] escapen; ']' → ']]'
+    return "[" + nm.replace("]", "]]") + "]"
+
+
+def escape_identifier_firebird(name: str) -> str:
+    nm = str(name)
+    up = nm.upper()
+    safe = _FIREBIRD_ID_RE.match(nm) and up not in _FIREBIRD_RESERVED
+    if safe:
+        return nm
+    # mit " " escapen; '"' → '""'
+    return '"' + nm.replace('"', '""') + '"'

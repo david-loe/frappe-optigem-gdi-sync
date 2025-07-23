@@ -19,6 +19,7 @@ class SyncTaskBase(Generic[T], ABC):
         self.frappe_api = frappe_api
         self.dry_run = dry_run
         self.db_conn = db_conn.get_connection(self.config.db_name)
+        self.esc_db_col = db_conn.get_escape_identifier_fn(self.config.db_name)
         self.frappe_tz_delta = frappe_api.tz_delta
         self.db_tz_delta = get_time_zone(self.db_conn)
 
@@ -137,6 +138,9 @@ class SyncTaskBase(Generic[T], ABC):
     def _cast_frappe_record(self, record: dict):
         for field in self.config.frappe.datetime_fields:
             if field in record and isinstance(record[field], str):
+                if not record[field]:
+                    record[field] = None
+                    continue
                 try:
                     record[field] = datetime.fromisoformat(record[field])
                 except ValueError:
@@ -144,6 +148,9 @@ class SyncTaskBase(Generic[T], ABC):
                     pass
         for field in self.config.frappe.int_fields:
             if field in record and isinstance(record[field], str):
+                if not record[field]:
+                    record[field] = None
+                    continue
                 try:
                     record[field] = int(record[field])
                 except ValueError:
@@ -189,10 +196,10 @@ class SyncTaskBase(Generic[T], ABC):
         if last_sync_date_utc:
             last_sync_date = last_sync_date_utc + self.db_tz_delta
             params = [last_sync_date]
-            select_sql = select_sql + f" WHERE {self.config.db.modified_field} >= ?"
+            select_sql = select_sql + f" WHERE {self.esc_db_col(self.config.db.modified_field)} >= ?"
             if self.config.db.fallback_modified_field:
                 params.append(last_sync_date)
-                select_sql = select_sql + f" OR {self.config.db.fallback_modified_field} >= ?"
+                select_sql = select_sql + f" OR {self.esc_db_col(self.config.db.fallback_modified_field)} >= ?"
 
         if self.config.query:
             select_sql = self.config.query
@@ -205,7 +212,7 @@ class SyncTaskBase(Generic[T], ABC):
 
     def get_db_records_by_ids(self, ids: list[str | int]):
         select_sql = f"SELECT * FROM {self.config.table_name}"
-        id_selector = f"{self.config.db.id_field} IN ({', '.join(['?']*len(ids))})"
+        id_selector = f"{self.esc_db_col(self.config.db.id_field)} IN ({', '.join(['?']*len(ids))})"
 
         if self.config.query:
             q = self.config.query.strip()
@@ -266,8 +273,8 @@ class SyncTaskBase(Generic[T], ABC):
         frappe_rec_data, frappe_rec_keys = self.split_frappe_in_data_and_keys(frappe_rec)
         db_data = self.map_frappe_to_db(frappe_rec_data, warns=False)
         db_keys = self.map_frappe_to_db(frappe_rec_keys, warns=False)
-        where_clause = " AND ".join([f"{k} = ?" for k in db_keys.keys()])
-        set_clause = ", ".join([f"{col} = ?" for col in db_data.keys()])
+        where_clause = " AND ".join([f"{self.esc_db_col(k)} = ?" for k in db_keys.keys()])
+        set_clause = ", ".join([f"{self.esc_db_col(col)} = ?" for col in db_data.keys()])
         sql = f"UPDATE {self.config.table_name} SET {set_clause} WHERE {where_clause}"
         params = list(db_data.values()) + list(db_keys.values())
         self.execute_query(sql, params, f"DB-Datensatz wurde aktualisiert.")
@@ -291,7 +298,7 @@ class SyncTaskBase(Generic[T], ABC):
             db_data = self.map_frappe_to_db(frappe_rec)
 
             def insert_query(data: dict):
-                columns = ", ".join(data.keys())
+                columns = ", ".join(self.esc_db_col(k) for k in data.keys())
                 placeholders = ", ".join(["?"] * len(data))
                 sql = f"INSERT INTO {self.config.table_name} ({columns}) VALUES ({placeholders});"
                 params = list(data.values())
@@ -335,7 +342,7 @@ class SyncTaskBase(Generic[T], ABC):
                 sql, params = insert_query(db_data)
                 self.execute_query(sql, params, f"Neuer DB-Datensatz wurde eingefügt.")
 
-            where_clause = " AND ".join([f"{k} = ?" for k in db_data.keys()])
+            where_clause = " AND ".join([f"{self.esc_db_col(k)} = ?" for k in db_data.keys()])
             sql_select = f"SELECT * FROM {self.config.table_name} WHERE {where_clause}"
             results = self._execute_select_query(sql_select, list(db_data.values()))
             if len(results) == 0:
