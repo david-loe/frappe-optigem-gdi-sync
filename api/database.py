@@ -208,7 +208,6 @@ def escape_identifier_mssql(name: str) -> str:
     nm = str(name)
     up = nm.upper()
     safe = _MSSQL_ID_RE.match(nm) and up not in _MSSQL_RESERVED
-    print(name, safe)
     if safe:
         return nm
     # mit [ ] escapen; ']' → ']]'
