@@ -10,7 +10,7 @@ Mit docker
 docker run -v ./config.yaml:/config.yaml davidloe/frappe-optigem-gdi-sync --config /config.yaml
 ```
 
-oder lokal, [setup](#setup-local) und dann:
+oder lokal, [setup](#setup-lokal) und dann:
 
 ```bash
 python3 synchronize.py
