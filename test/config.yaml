@@ -36,6 +36,6 @@ tasks:
     db:
       modified_fields:
         - Änderung
+        - Anlage
       fk_id_field: fk
       id_field: ContactID
-      fallback_modified_field: Anlage

@@ -44,7 +44,6 @@ tasks:
     db:
       modified_fields:
         - last_modified
-      fallback_modified_field: created_at
       fk_id_field: user_id
       id_field: id
     delete: true
@@ -69,7 +68,6 @@ tasks:
     db:
       modified_fields:
         - updated_at
-      fallback_modified_field: null
     process_all: true
 
   export_invoices:
