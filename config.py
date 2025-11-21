@@ -35,7 +35,7 @@ class FrappeConfig(FrappeAuthConfig):
 
 
 class TaskFrappeBase(BaseModel):
-    modified_field: str = "modified"
+    modified_fields: Annotated[list[str], Field(min_length=1)] = ["modified"]
     id_field: Literal["name"] = "name"
     # All Date fields that will be converted to datetime after get (due to json)
     datetime_fields: list[str] = []
@@ -43,8 +43,9 @@ class TaskFrappeBase(BaseModel):
     int_fields: list[str] = []
 
     def model_post_init(self, __context):
-        if self.modified_field not in self.datetime_fields:
-            self.datetime_fields.append(self.modified_field)
+        for modified_field in self.modified_fields:
+            if modified_field not in self.datetime_fields:
+                self.datetime_fields.append(modified_field)
 
 
 class TaskFrappeBidirectional(TaskFrappeBase):
@@ -52,8 +53,7 @@ class TaskFrappeBidirectional(TaskFrappeBase):
 
 
 class TaskDbBase(BaseModel):
-    modified_field: str
-    fallback_modified_field: Optional[str] = None
+    modified_fields: list[str]
 
 
 class TaskDbFrappeToDb(TaskDbBase):
@@ -64,13 +64,14 @@ class TaskDbFrappeToDb(TaskDbBase):
 
 class TaskDbBidirectional(TaskDbFrappeToDb):
     fk_id_field: str
+    modified_fields: Annotated[list[str], Field(min_length=1)]
 
 
 class TaskBase(BaseModel):
     doc_type: str
     db_name: str
     mapping: dict[str, str]
-    key_fields: list[str]
+    key_fields: Annotated[list[str], Field(min_length=1)]
     frappe: Optional[TaskFrappeBase] = None
     db: Optional[TaskDbBase] = None
     value_mapping: dict[str, dict[str | int, str | int]] = {}
@@ -144,3 +145,16 @@ class Config(BaseModel):
     dry_run: bool = False
     timestamp_file: str = "timestamps.yaml"
     timestamp_buffer_seconds: int = 15
+
+
+import json
+from pathlib import Path
+
+if __name__ == "__main__":
+
+    schema = Config.model_json_schema()
+
+    schema_path = Path("config.schema.json")
+    schema_path.write_text(json.dumps(schema, indent=2, ensure_ascii=False))
+
+    print(f"Schema geschrieben nach {schema_path.resolve()}")

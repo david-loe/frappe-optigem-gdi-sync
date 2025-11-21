@@ -30,10 +30,12 @@ tasks:
       - name
 
     frappe:
-      modified_field: modified
+      modified_fields:
+        - modified
       fk_id_field: db_id
     db:
-      modified_field: Änderung
+      modified_fields:
+        - Änderung
       fk_id_field: fk
       id_field: ContactID
       fallback_modified_field: Anlage

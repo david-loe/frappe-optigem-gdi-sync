@@ -89,15 +89,17 @@ class BidirectionalSyncTask(SyncTaskBase[BidirectionalTaskConfig]):
     def get_modified_timestamp(self, record: dict, source: Literal["frappe", "db"]) -> datetime | None:
         timestamp = None
         if source == "frappe":
-            timestamp = record.get(self.config.frappe.modified_field)
-            if timestamp:
-                timestamp = timestamp - self.frappe_tz_delta
+            for modified_field in self.config.frappe.modified_fields:
+                timestamp = record.get(modified_field)
+                if timestamp:
+                    timestamp = timestamp - self.frappe_tz_delta
+                    break
         elif source == "db":
-            timestamp = record.get(self.config.db.modified_field)
-            if timestamp is None:
-                timestamp = record.get(self.config.db.fallback_modified_field)
-            if timestamp:
-                timestamp = timestamp - self.db_tz_delta
+            for modified_field in self.config.db.modified_fields:
+                timestamp = record.get(modified_field)
+                if timestamp:
+                    timestamp = timestamp - self.db_tz_delta
+                    break
         return timestamp
 
     def update_db_foreign_id(self, db_rec: dict, foreign_id: str):

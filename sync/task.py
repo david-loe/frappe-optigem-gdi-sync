@@ -73,8 +73,8 @@ class SyncTaskBase(Generic[T], ABC):
                 if value is not None:
                     # harmonize time zones
                     if (
-                        frappe_field == self.config.frappe.modified_field
-                        and db_column == self.config.db.modified_field
+                        frappe_field in self.config.frappe.modified_fields
+                        and db_column in self.config.db.modified_fields
                         and isinstance(value, datetime)
                     ):
                         value = value - self.frappe_tz_delta + self.db_tz_delta
@@ -106,6 +106,14 @@ class SyncTaskBase(Generic[T], ABC):
             if db_column in record:
                 value = record[db_column]
                 if value is not None:
+                    # harmonize time zones
+                    if (
+                        frappe_field in self.config.frappe.modified_fields
+                        and db_column in self.config.db.modified_fields
+                        and isinstance(value, datetime)
+                    ):
+                        value = value - self.db_tz_delta + self.frappe_tz_delta
+
                     # use value_mapping
                     if frappe_field in self.config.value_mapping:
                         found = False
@@ -165,8 +173,9 @@ class SyncTaskBase(Generic[T], ABC):
         filters = []
         if last_sync_date_utc:
             last_sync_date = last_sync_date_utc + self.frappe_tz_delta
-            filters.append(f'["{self.config.frappe.modified_field}", ">=", "{last_sync_date.isoformat()}"]')
-        frappe_response = self.frappe_api.get_all_data(self.config.doc_type, filters)
+            for modified_field in self.config.frappe.modified_fields:
+                filters.append(f'["{modified_field}", ">=", "{last_sync_date.isoformat()}"]')
+        frappe_response = self.frappe_api.get_all_data(self.config.doc_type, filters, or_filters=True)
         records = frappe_response.get("data", [])
         for rec in records:
             self._cast_frappe_record(rec)
@@ -195,11 +204,12 @@ class SyncTaskBase(Generic[T], ABC):
         params = []
         if last_sync_date_utc:
             last_sync_date = last_sync_date_utc + self.db_tz_delta
-            params = [last_sync_date]
-            select_sql = select_sql + f" WHERE {self.esc_db_col(self.config.db.modified_field)} >= ?"
-            if self.config.db.fallback_modified_field:
+            is_first_condition = True
+            for modified_field in self.config.db.modified_fields:
+                conjunction = "WHERE" if is_first_condition else " OR"
+                select_sql = select_sql + f"{conjunction} {self.esc_db_col(modified_field)} >= ?"
                 params.append(last_sync_date)
-                select_sql = select_sql + f" OR {self.esc_db_col(self.config.db.fallback_modified_field)} >= ?"
+                is_first_condition = False
 
         if self.config.query:
             select_sql = self.config.query
@@ -295,6 +305,8 @@ class SyncTaskBase(Generic[T], ABC):
         Fügt einen neuen Datensatz in die DB ein, basierend auf den Daten aus Frappe.
         """
         if self.config.create_new:
+            frappe_rec_data, frappe_rec_keys = self.split_frappe_in_data_and_keys(frappe_rec)
+            db_only_keys = self.map_frappe_to_db(frappe_rec_keys, warns=False)
             db_data = self.map_frappe_to_db(frappe_rec)
 
             def insert_query(data: dict):
@@ -310,8 +322,8 @@ class SyncTaskBase(Generic[T], ABC):
                 try:
                     sql_next = (
                         f"SELECT ISNULL(MAX({self.config.db.id_field}), 0) + 1 FROM {self.config.table_name}"
-                        f"{'' if self.config.db.manual_id_sequence_max is None else f' WHERE {self.config.db.id_field} < {self.config.db.manual_id_sequence_max}'}"
-                        f"{'' if self.dry_run else ' WITH (TABLOCKX, HOLDLOCK)'};"
+                        f"{'' if self.dry_run else ' WITH (TABLOCKX, HOLDLOCK)'}"
+                        f"{';' if self.config.db.manual_id_sequence_max is None else f' WHERE {self.config.db.id_field} < {self.config.db.manual_id_sequence_max};'}"
                     )
                     logging.debug(f"Anfrage an {self.config.db_name}\n{format_query(sql_next, [])}")
                     cursor.execute(sql_next)
@@ -321,6 +333,7 @@ class SyncTaskBase(Generic[T], ABC):
                             f"Manuelle errechnete nächste ID ({next_nr}) übersteigt manual_id_sequence_max ({self.config.db.manual_id_sequence_max})"
                         )
                     db_data[self.config.db.id_field] = next_nr
+                    db_only_keys[self.config.db.id_field] = next_nr
 
                     sql, params = insert_query(db_data)
                     if self.dry_run:
@@ -342,14 +355,14 @@ class SyncTaskBase(Generic[T], ABC):
                 sql, params = insert_query(db_data)
                 self.execute_query(sql, params, f"Neuer DB-Datensatz wurde eingefügt.")
 
-            where_clause = " AND ".join([f"{self.esc_db_col(k)} = ?" for k in db_data.keys()])
+            where_clause = " AND ".join([f"{self.esc_db_col(k)} = ?" for k in db_only_keys.keys()])
             sql_select = f"SELECT * FROM {self.config.table_name} WHERE {where_clause}"
-            results = self._execute_select_query(sql_select, list(db_data.values()))
+            results = self._execute_select_query(sql_select, list(db_only_keys.values()))
             if len(results) == 0:
-                logging.warning(f"DB-Datensatz konnte nach UPDATE nicht gefunden werden: {db_data}")
+                logging.warning(f"DB-Datensatz konnte nach UPDATE nicht gefunden werden: {db_only_keys}")
                 return None
             elif len(results) == 1:
                 return results[0]
             else:
-                logging.warning(f"Nach UPDATE konnten mehrere DB-Datensätze gefunden werden: {db_data}")
+                logging.warning(f"Nach UPDATE konnten mehrere DB-Datensätze gefunden werden: {db_only_keys}")
                 return results[0]

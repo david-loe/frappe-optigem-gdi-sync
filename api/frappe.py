@@ -62,11 +62,19 @@ class FrappeAPI:
     def update_data(self, doc_type: str, doc_name: str, data):
         return self._send_data("PUT", self.get_endpoint(doc_type, doc_name), data)
 
-    def get_data(self, doc_type: str, doc_name: str | None = None, filters: list[str] = [], params: dict | None = None):
+    def get_data(
+        self,
+        doc_type: str,
+        doc_name: str | None = None,
+        filters: list[str] = [],
+        params: dict | None = None,
+        or_filters=False,
+    ):
         endpoint = self.get_endpoint(doc_type, doc_name)
         params = params.copy() if params else {}
         if len(filters) > 0:
-            params["filters"] = f"[{','.join(filters)}]"
+            filter_parameter = "or_filters" if or_filters else "filters"
+            params[filter_parameter] = f"[{','.join(filters)}]"
         try:
             response = requests.get(endpoint, headers=self.headers, params=params)
             response.raise_for_status()
@@ -76,8 +84,7 @@ class FrappeAPI:
             logging.error(f"Fehler beim Abrufen der Daten von {endpoint} ({params}): {e}")
             return None
 
-    def get_all_data(self, doc_type: str, filters: list[str] = [], params: dict | None = None):
-
+    def get_all_data(self, doc_type: str, filters: list[str] = [], params: dict | None = None, or_filters=False):
         limit_start = 0
         data = []
         while len(data) == limit_start:
@@ -85,7 +92,7 @@ class FrappeAPI:
             params["limit"] = self.config.limit_page_length
             params["limit_start"] = limit_start
             params["fields"] = '["*"]'
-            res = self.get_data(doc_type, filters=filters, params=params)
+            res = self.get_data(doc_type, filters=filters, params=params, or_filters=or_filters)
             if res:
                 more_data = res.get("data")
                 if isinstance(more_data, list):

@@ -35,13 +35,15 @@ tasks:
       - name
     table_name: users
     frappe:
-      modified_field: modified
+      modified_fields:
+        - modified
       id_field: name
       datetime_fields: [modified]
       int_fields: [user_id]
       fk_id_field: user_id
     db:
-      modified_field: last_modified
+      modified_fields:
+        - last_modified
       fallback_modified_field: created_at
       fk_id_field: user_id
       id_field: id
@@ -59,12 +61,14 @@ tasks:
       - order_id
     table_name: orders
     frappe:
-      modified_field: modified
+      modified_fields:
+        - modified
       id_field: name
       datetime_fields: [modified]
       int_fields: []
     db:
-      modified_field: updated_at
+      modified_fields:
+        - updated_at
       fallback_modified_field: null
     process_all: true
 
