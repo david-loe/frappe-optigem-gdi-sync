@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.10-slim-bookworm
 
 RUN apt-get update && \
     apt-get install -y unixodbc libfbclient2 gnupg curl ca-certificates apt-transport-https software-properties-common cron
