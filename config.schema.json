@@ -727,7 +727,7 @@
       "type": "boolean"
     },
     "timestamp_file": {
-      "default": "timestamps.db",
+      "default": "data.db",
       "title": "Timestamp File",
       "type": "string"
     },

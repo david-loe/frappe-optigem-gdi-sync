@@ -86,9 +86,9 @@ def test_value_mapping_reverse_db_to_frappe():
 
 def test_save_sync_date_replaces_entries_with_same_hash(tmp_path):
     config = make_config({"modified": "updated_at"})
-    timestamp_file = tmp_path / "timestamps.db"
+    timestamp_file = tmp_path / "data.db"
     manager = SyncManager.__new__(SyncManager)
-    manager.config = type("Cfg", (), {"dry_run": False, "timestamp_file": "timestamps.db"})
+    manager.config = type("Cfg", (), {"dry_run": False, "timestamp_file": "data.db"})
     manager.history_db = TaskHistoryDB(str(timestamp_file))
 
     existing_hash = gen_task_hash(config)
@@ -149,7 +149,7 @@ def test_compare_datetimes_honors_tolerance():
 
 
 def test_sqlite_log_handler_writes_logs(tmp_path):
-    history = TaskHistoryDB(str(tmp_path / "timestamps.db"))
+    history = TaskHistoryDB(str(tmp_path / "data.db"))
     started_at = datetime(2024, 1, 1, 12, 0, 0)
     run_id = history.start_run("task", "hash", None, started_at)
     handler = SQLiteRunLogHandler(history, run_id)
@@ -173,4 +173,31 @@ def test_sqlite_log_handler_writes_logs(tmp_path):
     assert logs[0]["level"] == "INFO"
     assert logs[1]["message"].endswith("warn")
     assert logs[1]["level"] == "WARNING"
+    history.close()
+
+
+def test_cron_get_and_set(tmp_path):
+    history = TaskHistoryDB(str(tmp_path / "data.db"))
+
+    schedule = history.get_schedule()
+    assert schedule["cron"] is None
+
+    history.set_cron_expr("0 5 * * *")
+    schedule = history.get_schedule()
+    assert schedule["cron"] == "0 5 * * *"
+    history.close()
+
+
+def test_list_runs_orders_by_started_at_desc(tmp_path):
+    history = TaskHistoryDB(str(tmp_path / "data.db"))
+    first = history.start_run("task", "hash", None, datetime(2024, 1, 1, 12, 0, 0))
+    history.finish_run(first, "success", datetime(2024, 1, 1, 12, 1, 0))
+    second = history.start_run("task", "hash", None, datetime(2024, 1, 1, 13, 0, 0))
+    history.finish_run(second, "error", datetime(2024, 1, 1, 13, 2, 0))
+
+    runs = history.list_runs()
+
+    assert runs[0]["id"] == second
+    assert runs[0]["status"] == "error"
+    assert runs[1]["id"] == first
     history.close()

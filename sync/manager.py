@@ -14,17 +14,22 @@ from sync.task import SyncTaskBase
 from utils.history_db import SQLiteRunLogHandler, TaskHistoryDB
 
 
+def resolve_timestamp_path(config_path: str, timestamp_file: str) -> str:
+    config_dir = os.path.dirname(config_path)
+    return os.path.join(config_dir, timestamp_file)
+
+
 class SyncManager:
-    def __init__(self, config: Config, config_path: str):
+    def __init__(self, config: Config, config_path: str, history_db: TaskHistoryDB | None = None):
         self.config = config
         if config.dry_run:
             logging.info("Sync läuft im Dry-Run Modus")
         self.db_conn = DatabaseConnection(config.databases)
         self.frappe_api = FrappeAPI(config.frappe, config.dry_run)
         self.tasks = self._load_tasks(config.tasks)
-        config_dir = os.path.dirname(config_path)
-        timestamp_path = os.path.join(config_dir, config.timestamp_file)
-        self.history_db = TaskHistoryDB(timestamp_path)
+        timestamp_path = resolve_timestamp_path(config_path, config.timestamp_file)
+        self.history_db = history_db or TaskHistoryDB(timestamp_path)
+        self._close_history_db = history_db is None
 
     def _load_tasks(self, task_configs: dict[str, TaskConfig]):
         tasks: list[SyncTaskBase] = []
@@ -72,7 +77,8 @@ class SyncManager:
                     handler.close()
         finally:
             self.db_conn.close_connections()
-            self.history_db.close()
+            if self._close_history_db:
+                self.history_db.close()
 
     def get_last_sync_date(self, task_config: TaskConfig) -> datetime | None:
         if not task_config.use_last_sync_date:

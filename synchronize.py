@@ -2,9 +2,8 @@ import argparse
 import logging
 import sys
 
-import yaml
-from config import Config
 from sync.manager import SyncManager
+from utils.config_loader import load_config_file
 
 
 def main():
@@ -29,17 +28,10 @@ def main():
 
     # YAML-Konfigurationsdatei laden
     try:
-        with open(args.config, "r", encoding="utf-8") as file:
-            config_file = yaml.safe_load(file)
-            config_file["dry_run"] = args.dry_run or config_file.get("dry_run", False)
+        config = load_config_file(args.config, args.dry_run)
     except Exception as e:
         logger.error(f"Fehler beim Laden der Konfigurationsdatei {args.config}: {e}")
         sys.exit(1)
-
-    # Konfiguration validieren
-    config = Config(**config_file)
-
-    # Dry-Run von den Argumenten setzen
 
     sync_manager = SyncManager(config, args.config)
     sync_manager.run()

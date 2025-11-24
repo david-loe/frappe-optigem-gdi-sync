@@ -3,9 +3,11 @@ services:
     build: .
     volumes:
       - ./config.yaml:/config.yaml:ro
-      - ./timestamps.db:/timestamps.db
+      - ./data.db:/data.db
     # entrypoint: ["python", "./gen_hashes.py"] # for generating hashes
     command: --config /config.yaml # --loglevel debug
     environment:
-      # CRON: "0 5 * * *"
+      # CRON: "0 5 * * *" # Cron muss explizit gesetzt werden, sonst kein Auto-Run
       TZ: Europe/Berlin
+    ports:
+      - "8000:8000"

@@ -5,3 +5,6 @@ pyodbc
 pydantic
 pytest
 peewee
+fastapi
+uvicorn
+croniter

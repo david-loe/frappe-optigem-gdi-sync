@@ -82,5 +82,5 @@ tasks:
     table_name: invoices
 
 dry_run: false
-timestamp_file: timestamps.db
+timestamp_file: data.db
 timestamp_buffer_seconds: 15
