@@ -727,7 +727,7 @@
       "type": "boolean"
     },
     "timestamp_file": {
-      "default": "timestamps.yaml",
+      "default": "data.db",
       "title": "Timestamp File",
       "type": "string"
     },
@@ -735,6 +735,32 @@
       "default": 15,
       "title": "Timestamp Buffer Seconds",
       "type": "integer"
+    },
+    "max_success_runs_per_task": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Max Success Runs Per Task"
+    },
+    "max_error_runs_per_task": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Max Error Runs Per Task"
     }
   },
   "required": [

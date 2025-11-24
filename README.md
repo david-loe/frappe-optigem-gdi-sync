@@ -4,40 +4,63 @@ Syncronisation zwischen Frappe und Optigem / GDI Lohn & Gehalt
 
 ## Start
 
-Mit docker
+Docker (Web Service ist Standard):
 
 ```bash
-docker run -v ./config.yaml:/config.yaml davidloe/frappe-optigem-gdi-sync --config /config.yaml
+docker run \
+  -p 8000:8000 \
+  -e CRON="*/15 * * * *" \  # optional, sonst kein Auto-Run
+  -v ./config.yaml:/config.yaml \
+  -v ./timestamps.db:/timestamps.db \
+  davidloe/frappe-optigem-gdi-sync --config /config.yaml
 ```
 
-oder lokal, [setup](#setup-lokal) und dann:
+Lokal: [Setup](#setup-lokal) und dann Web Service oder einmalige Ausführung:
 
 ```bash
-python3 synchronize.py
+# Web Service
+python3 service.py --config config.yaml --port 8000
+
+# Einmaliger Lauf
+python3 synchronize.py --config config.yaml
 ```
 
-```
-options:
-  -h, --help           show this help message and exit
-  --loglevel LOGLEVEL  Setzt das Loglevel (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-  --config CONFIG      Pfad zur Konfigurationsdatei
-  --dry-run            Führt den Sync im Dry-Run-Modus aus (keine Änderungen werden vorgenommen)
-```
+## 🌐 Web Service (Default)
 
-## 🕒 Cron-Modus
+Der Container startet standardmäßig den Web Service. Darüber lässt sich der Cron-Plan online setzen (keine Ausführung ohne gesetzten Cron), ein Lauf manuell anstoßen und die Logs der vergangenen Runs abrufen.
 
-Wenn die Umgebungsvariable `CRON` gesetzt ist, startet der Container im **Cron-Modus**.
-Dabei wird der übergebene Wert von `CRON` als [Cron-Expression](https://crontab.guru/) interpretiert und zur Steuerung des Ausführungszeitpunkts verwendet.
-
-Beispiel:
+Lokal starten:
 
 ```bash
-docker run -e CRON="*/10 * * * *" -v ./config.yaml:/config.yaml davidloe/frappe-optigem-gdi-sync --config /config.yaml
+python3 service.py --config config.yaml --port 8000
+# optional direkt einen Cron mitgeben:
+# python3 service.py --config config.yaml --port 8000 --cron "*/10 * * * *"
 ```
 
-→ Führt das Skript alle 10 Minuten aus.
+Docker:
 
-Wenn `CRON` **nicht gesetzt ist**, wird das Skript **einmalig direkt beim Containerstart** ausgeführt.
+```bash
+docker run \
+  -p 8000:8000 \
+  -e CRON="*/15 * * * *" \
+  -v ./config.yaml:/config.yaml \
+  -v ./timestamps.db:/timestamps.db \
+  davidloe/frappe-optigem-gdi-sync --config /config.yaml
+```
+
+API-Endpunkte (Port 8000, JSON):
+
+- `GET /health` – Status & aktueller Cron-Plan
+- `GET /schedule` / `PUT /schedule` – Cron-Ausdruck setzen (`{"cron": "5 2 * * *"}`)
+- `POST /run` – manuellen Sync starten
+- `GET /runs?limit=50&task_name=...` – letzte Runs
+- `GET /runs/{run_id}/logs?limit=200` – Logs zu einem Run
+
+### Einfaches Web-UI
+
+Der Web Service liefert unter `/` ein leichtgewichtiges Dashboard für die oben genannten Endpunkte. Service starten und dann im Browser `http://localhost:8000/` aufrufen, um den Cron zu pflegen, einen Run anzustoßen und Logs anzusehen.
+
+Der Plan wird in der `timestamps.db` gespeichert. Ohne gesetzten Cron (z. B. per `CRON` oder `PUT /schedule`) wird nichts automatisch ausgeführt.
 
 ## Config anpassen
 
@@ -132,6 +155,9 @@ Zusätzlich gibt es in allen Aufgaben (TaskBase) folgende allgemeine Optionen:
 - **dry_run:** Wenn auf `true` gesetzt, werden keine Änderungen an den Systemen vorgenommen – die Ausführung erfolgt als Simulation.
 - **timestamp_file:** Pfad zur Datei, in der Zeitstempel der letzten Synchronisation gespeichert werden. (relativ zum Ordner der config Datei)
 - **timestamp_buffer_seconds:** Zeitpuffer in Sekunden, um zeitliche Ungenauigkeiten bei der Synchronisation zu kompensieren.
+- **max_success_runs_per_task / max_error_runs_per_task:** Maximale Anzahl gespeicherter erfolgreicher bzw. fehlerhafter Runs pro Task. Wenn nicht gesetzt, werden alle Runs behalten.
+
+Die Zeitstempel werden in einer SQLite-DB (`data.db` per Default) abgelegt. Für jeden Task-Run wird dort zusätzlich ein Run-Eintrag mit den zugehörigen Log-Meldungen gespeichert.
 
 ## Setup Lokal
 

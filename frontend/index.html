@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frappe ↔ Optigem Sync</title>
+  <style>
+    :root {
+      --bg: #0b1427;
+      --panel: #0f233b;
+      --panel-strong: #0c1b30;
+      --border: rgba(255, 255, 255, 0.1);
+      --muted: #8fb3d1;
+      --text: #e8f0fb;
+      --accent: #5de4c7;
+      --accent-2: #ffd166;
+      --danger: #f86a6a;
+      --success: #6ee7b7;
+      --shadow: 0 20px 60px rgba(5, 10, 30, 0.45);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Gill Sans", "Trebuchet MS", "Noto Sans", sans-serif;
+      background:
+        radial-gradient(circle at 18% 20%, #122641, #0b1427 40%),
+        radial-gradient(circle at 80% 0%, #0f2e4f, #080f1f 48%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+
+    .hero {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      align-items: flex-start;
+      justify-content: space-between;
+      background: linear-gradient(120deg, rgba(93, 228, 199, 0.16), rgba(64, 138, 255, 0.18));
+      border: 1px solid var(--border);
+      padding: 26px;
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero h1 {
+      margin: 0 0 8px 0;
+      font-size: 26px;
+      letter-spacing: 0.2px;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 720px;
+      line-height: 1.5;
+    }
+
+    .hero .meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .badge {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .pill {
+      padding: 8px 14px;
+      border-radius: 14px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-top: 22px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      min-height: 140px;
+    }
+
+    .card h3 {
+      margin: 0 0 10px 0;
+      font-size: 17px;
+      letter-spacing: 0.2px;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 8px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    input[type="text"],
+    select {
+      flex: 1;
+      min-width: 180px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel-strong);
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+    }
+
+    input[type="text"]:focus,
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(93, 228, 199, 0.2);
+    }
+
+    select {
+      appearance: none;
+      cursor: pointer;
+      background-image:
+        linear-gradient(45deg, transparent 50%, var(--text) 50%),
+        linear-gradient(135deg, var(--text) 50%, transparent 50%),
+        linear-gradient(to right, transparent, transparent);
+      background-position:
+        calc(100% - 18px) calc(50% - 2px),
+        calc(100% - 12px) calc(50% - 2px),
+        calc(100% - 36px) 0%;
+      background-size: 8px 8px, 8px 8px, 1px 60%;
+      background-repeat: no-repeat;
+    }
+
+    button {
+      background: var(--accent);
+      color: #0c1c2f;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 0 10px 30px rgba(93, 228, 199, 0.3);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+    }
+
+    button:hover { transform: translateY(-1px); box-shadow: 0 14px 36px rgba(93, 228, 199, 0.36); }
+    button:active { transform: translateY(0); }
+    button.secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      box-shadow: none;
+      border: 1px solid var(--border);
+    }
+    button.danger {
+      background: var(--danger);
+      color: #120a0a;
+      box-shadow: 0 10px 30px rgba(248, 106, 106, 0.35);
+    }
+    button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .runs-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 34px;
+      margin-bottom: 12px;
+    }
+
+    .runs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .run-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      cursor: pointer;
+      transition: border-color 0.12s ease, transform 0.12s ease;
+    }
+
+    .run-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .run-card.active { border-color: var(--accent-2); box-shadow: 0 12px 24px rgba(255, 209, 102, 0.2); }
+
+    .run-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .run-title h4 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .status-pill {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #0c1c2f;
+    }
+
+    .status-running { background: #ffd166; }
+    .status-ok { background: #6ee7b7; }
+    .status-error { background: #f86a6a; color: #120a0a; }
+
+    .meta-row {
+      display: flex;
+      gap: 8px 12px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 6px;
+    }
+
+    .section {
+      margin-top: 28px;
+      background: var(--panel-strong);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .section h3 {
+      margin: 0 0 10px 0;
+    }
+
+    .logs {
+      background: #050a16;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      max-height: 420px;
+      overflow: auto;
+      font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+      font-size: 13px;
+    }
+
+    .log-line {
+      padding: 6px 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      display: grid;
+      grid-template-columns: 130px 70px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .log-line:last-child { border-bottom: none; }
+
+    .log-level { font-weight: 700; }
+    .log-level.INFO { color: var(--muted); }
+    .log-level.WARNING { color: var(--accent-2); }
+    .log-level.ERROR, .log-level.CRITICAL { color: var(--danger); }
+
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-left: 6px solid var(--accent);
+      padding: 12px 14px;
+      border-radius: 12px;
+      color: var(--text);
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 10;
+      max-width: 320px;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast.error { border-left-color: var(--danger); }
+    .toast.warn { border-left-color: var(--accent-2); }
+
+    .subtle {
+      color: var(--muted);
+      font-size: 13px;
+      margin: 4px 0 0 0;
+    }
+
+    @media (max-width: 640px) {
+      .log-line { grid-template-columns: 90px 60px 1fr; font-size: 12px; }
+      .hero { padding: 20px; }
+      .card, .section { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="hero">
+      <div>
+        <h1>Frappe ↔ Optigem Sync</h1>
+        <p>Steuere den Sync-Service direkt aus dem Browser: Cron-Plan pflegen, Runs anstoßen und Logs ansehen, ohne die API per Hand aufzurufen.</p>
+        <div class="meta">
+          <span class="badge">Auto-Refresh alle 20s</span>
+          <span class="badge" id="cronBadge">Cron nicht gesetzt</span>
+        </div>
+      </div>
+      <div class="pill">
+        <div style="font-weight: 700; margin-bottom: 6px;">Service</div>
+        <div id="healthStatus"><span class="status-dot" style="background: var(--danger);"></span>keine Daten</div>
+        <div class="subtle" id="healthInfo">wartet auf API...</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Status</h3>
+        <p id="statusText">Lädt Status...</p>
+        <div class="meta-row">
+          <span id="runningLabel"></span>
+          <span id="cronLabel"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Cron setzen</h3>
+        <p>Neuen Cron-Ausdruck hinterlegen (z. B. <code>*/15 * * * *</code>). Der Wert wird in der Timestamp-DB gespeichert.</p>
+        <div class="input-row">
+          <input id="cronInput" type="text" placeholder="Cron-Ausdruck">
+          <button id="updateCronBtn">Speichern</button>
+        </div>
+        <div class="subtle">Cron-Ausdruck ist Pflicht; ungültige Werte werden abgelehnt.</div>
+      </div>
+
+      <div class="card">
+        <h3>Manueller Sync</h3>
+        <p>Startet sofort einen Run. Läuft bereits ein Sync, wird die API mit 409 antworten.</p>
+        <div class="input-row">
+          <select id="taskSelect">
+            <option value="">Alle Tasks</option>
+          </select>
+          <button id="runNowBtn">Sync jetzt starten</button>
+          <button class="secondary" id="refreshBtn">Refresh</button>
+        </div>
+        <div class="subtle" id="lastActionInfo">Bereit. Ohne Auswahl werden alle Tasks gestartet.</div>
+      </div>
+    </div>
+
+    <div class="runs-header">
+      <div>
+        <h3 style="margin:0;">Letzte Runs</h3>
+        <p class="subtle" style="margin:4px 0 0 0;">Click auf einen Run, um Details und Logs zu sehen.</p>
+      </div>
+      <div class="input-row" style="flex-wrap: nowrap; gap: 8px;">
+        <input id="taskFilter" type="text" placeholder="Task-Name filtern (optional)" style="min-width: 220px;">
+        <button class="secondary" id="filterBtn">Anwenden</button>
+      </div>
+    </div>
+
+    <div class="runs-grid" id="runsContainer">
+      <div class="card" style="text-align:center;">Keine Runs geladen.</div>
+    </div>
+
+    <div class="section">
+      <div class="runs-header" style="margin-top:0; margin-bottom:6px;">
+        <div>
+          <h3 style="margin:0;" id="detailTitle">Logs</h3>
+          <p class="subtle" id="detailSubtitle">Bitte einen Run auswählen.</p>
+        </div>
+        <div id="detailMeta" class="meta-row" style="justify-content:flex-end;"></div>
+      </div>
+      <div class="logs" id="logsBox">
+        <div class="log-line">
+          <div>--:--</div>
+          <div class="log-level INFO">INFO</div>
+          <div>Wähle einen Run, um Logs zu sehen.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const state = { runs: [], selectedRun: null, tasks: [] };
+
+    const elements = {
+      healthStatus: document.getElementById("healthStatus"),
+      healthInfo: document.getElementById("healthInfo"),
+      cronBadge: document.getElementById("cronBadge"),
+      statusText: document.getElementById("statusText"),
+      runningLabel: document.getElementById("runningLabel"),
+      cronLabel: document.getElementById("cronLabel"),
+      cronInput: document.getElementById("cronInput"),
+      taskSelect: document.getElementById("taskSelect"),
+      updateCronBtn: document.getElementById("updateCronBtn"),
+      runNowBtn: document.getElementById("runNowBtn"),
+      refreshBtn: document.getElementById("refreshBtn"),
+      lastActionInfo: document.getElementById("lastActionInfo"),
+      runsContainer: document.getElementById("runsContainer"),
+      taskFilter: document.getElementById("taskFilter"),
+      filterBtn: document.getElementById("filterBtn"),
+      detailTitle: document.getElementById("detailTitle"),
+      detailSubtitle: document.getElementById("detailSubtitle"),
+      detailMeta: document.getElementById("detailMeta"),
+      logsBox: document.getElementById("logsBox"),
+      toast: document.getElementById("toast"),
+    };
+
+    function showToast(message, tone = "info") {
+      elements.toast.textContent = message;
+      elements.toast.className = `toast ${tone} show`;
+      setTimeout(() => elements.toast.classList.remove("show"), 2500);
+    }
+
+    function formatDate(value) {
+      if (!value) return "–";
+      try {
+        const d = new Date(value);
+        return d.toLocaleString("de-DE", { dateStyle: "short", timeStyle: "medium" });
+      } catch (e) {
+        return value;
+      }
+    }
+
+    function setHealth(status) {
+      const dotColor = status.running ? "var(--accent-2)" : "var(--danger)";
+      elements.healthStatus.innerHTML = `<span class="status-dot" style="background:${dotColor};"></span>${status.running ? "Sync läuft" : "Bereit"}`;
+      elements.healthInfo.textContent = status.cron ? `Cron: ${status.cron}` : "kein Cron gesetzt";
+      elements.statusText.textContent = `API Status: ${status.status}`;
+      elements.runningLabel.textContent = status.running ? "Aktuell in Ausführung" : "Leerlauf";
+      elements.cronLabel.textContent = status.cron ? `Cron: ${status.cron}` : "Cron nicht gesetzt";
+      elements.cronBadge.textContent = status.cron ? `Cron ${status.cron}` : "Cron nicht gesetzt";
+      elements.cronBadge.style.background = status.cron ? "rgba(93, 228, 199, 0.15)" : "rgba(248, 106, 106, 0.15)";
+      if (!elements.cronInput.value && status.cron) {
+        elements.cronInput.value = status.cron;
+      }
+    }
+
+    async function fetchJSON(url, options) {
+      const res = await fetch(url, options);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || res.statusText);
+      }
+      return res.json();
+    }
+
+    function renderTasks(tasks) {
+      const current = elements.taskSelect.value;
+      elements.taskSelect.innerHTML = "";
+
+      const allOption = document.createElement("option");
+      allOption.value = "";
+      allOption.textContent = "Alle Tasks";
+      elements.taskSelect.appendChild(allOption);
+
+      let hasSelected = false;
+      tasks.forEach(task => {
+        const option = document.createElement("option");
+        option.value = task.name;
+        option.textContent = `${task.name} (${task.direction})`;
+        if (task.name === current) {
+          option.selected = true;
+          hasSelected = true;
+        }
+        elements.taskSelect.appendChild(option);
+      });
+
+      if (!hasSelected && current) {
+        elements.taskSelect.value = "";
+      }
+    }
+
+    async function loadTasks() {
+      try {
+        const data = await fetchJSON("/tasks");
+        state.tasks = data.tasks || [];
+        renderTasks(state.tasks);
+      } catch (err) {
+        showToast("Tasks konnten nicht geladen werden: " + err.message, "error");
+      }
+    }
+
+    async function loadHealth() {
+      try {
+        const data = await fetchJSON("/health");
+        setHealth(data);
+      } catch (err) {
+        elements.healthStatus.innerHTML = `<span class="status-dot" style="background: var(--danger);"></span>Keine Verbindung`;
+        elements.healthInfo.textContent = err.message;
+        showToast("Health-Check fehlgeschlagen: " + err.message, "error");
+      }
+    }
+
+    async function loadSchedule() {
+      try {
+        const data = await fetchJSON("/schedule");
+        if (data.cron && !elements.cronInput.value) {
+          elements.cronInput.value = data.cron;
+        }
+      } catch (err) {
+        showToast("Cron konnte nicht geladen werden: " + err.message, "error");
+      }
+    }
+
+    async function updateSchedule() {
+      const cron = elements.cronInput.value.trim();
+      if (!cron) {
+        showToast("Cron darf nicht leer sein.", "warn");
+        return;
+      }
+      elements.updateCronBtn.disabled = true;
+      try {
+        const body = { cron };
+        const res = await fetch("/schedule", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+          const msg = await res.text();
+          throw new Error(msg || "Fehler beim Speichern");
+        }
+        const data = await res.json();
+        setHealth({ status: "ok", running: false, cron: data.cron });
+        showToast("Cron aktualisiert.");
+      } catch (err) {
+        showToast("Cron-Update fehlgeschlagen: " + err.message, "error");
+      } finally {
+        elements.updateCronBtn.disabled = false;
+      }
+    }
+
+    async function triggerRun() {
+      elements.runNowBtn.disabled = true;
+      const selectedTask = elements.taskSelect.value;
+      elements.lastActionInfo.textContent = selectedTask ? `Starte Task '${selectedTask}'...` : "Starte alle Tasks...";
+      try {
+        const body = selectedTask ? { tasks: [selectedTask] } : null;
+        const res = await fetch("/run", {
+          method: "POST",
+          headers: body ? { "Content-Type": "application/json" } : undefined,
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        if (!res.ok) {
+          const msg = await res.text();
+          throw new Error(msg || "Fehler beim Start");
+        }
+        const info = selectedTask ? `Task ${selectedTask}` : "alle Tasks";
+        showToast(`Run gestartet (${info}).`);
+        elements.lastActionInfo.textContent = `Run gestartet (${info}).`;
+        await loadRuns();
+      } catch (err) {
+        elements.lastActionInfo.textContent = "Fehler: " + err.message;
+        showToast("Konnte Run nicht starten: " + err.message, "error");
+      } finally {
+        elements.runNowBtn.disabled = false;
+      }
+    }
+
+    function renderRuns(runs) {
+      if (!runs.length) {
+        elements.runsContainer.innerHTML = '<div class="card" style="text-align:center;">Keine Runs gefunden.</div>';
+        return;
+      }
+      elements.runsContainer.innerHTML = runs.map(run => {
+        const isRunning = run.status === "running";
+        const isSuccess = run.status === "success" || run.status === "ok";
+        const statusClass = isRunning ? "status-running" : (isSuccess ? "status-ok" : "status-error");
+        const statusLabel = run.status || "unbekannt";
+        const activeClass = state.selectedRun && state.selectedRun.id === run.id ? "active" : "";
+        return `
+          <div class="run-card ${activeClass}" data-run-id="${run.id}">
+            <div class="run-title">
+              <h4>${run.task_name || "Task"}</h4>
+              <span class="status-pill ${statusClass}">${statusLabel}</span>
+            </div>
+            <div class="meta-row">
+              <span>#${run.id}</span>
+              <span>${run.task_hash || ""}</span>
+            </div>
+            <div class="meta-row">
+              <span>Start: ${formatDate(run.started_at)}</span>
+              <span>Ende: ${formatDate(run.finished_at)}</span>
+            </div>
+            <div class="meta-row">
+              <span>Letztes Sync-Date: ${formatDate(run.last_sync_date_utc)}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderLogs(run, logs) {
+      if (!run) {
+        elements.detailTitle.textContent = "Logs";
+        elements.detailSubtitle.textContent = "Bitte einen Run auswählen.";
+        elements.detailMeta.innerHTML = "";
+        elements.logsBox.innerHTML = `
+          <div class="log-line">
+            <div>--:--</div>
+            <div class="log-level INFO">INFO</div>
+            <div>Wähle einen Run, um Logs zu sehen.</div>
+          </div>`;
+        return;
+      }
+      elements.detailTitle.textContent = `Run #${run.id}`;
+      elements.detailSubtitle.textContent = `${run.task_name || "Task"} · Status ${run.status}`;
+      elements.detailMeta.innerHTML = `
+        <span>Start: ${formatDate(run.started_at)}</span>
+        <span>Ende: ${formatDate(run.finished_at)}</span>
+        <span>Letztes Sync-Date: ${formatDate(run.last_sync_date_utc)}</span>
+      `;
+      if (!logs || !logs.length) {
+        elements.logsBox.innerHTML = `
+          <div class="log-line">
+            <div>--:--</div>
+            <div class="log-level INFO">INFO</div>
+            <div>Keine Logs vorhanden.</div>
+          </div>`;
+        return;
+      }
+      elements.logsBox.innerHTML = logs.map(log => `
+        <div class="log-line">
+          <div>${formatDate(log.created_at)}</div>
+          <div class="log-level ${log.level}">${log.level}</div>
+          <div>${log.message}</div>
+        </div>
+      `).join("");
+    }
+
+    async function loadRuns() {
+      const filter = elements.taskFilter.value.trim();
+      const params = new URLSearchParams({ limit: "50" });
+      if (filter) params.append("task_name", filter);
+      try {
+        const data = await fetchJSON("/runs?" + params.toString());
+        state.runs = data.runs || [];
+        renderRuns(state.runs);
+      } catch (err) {
+        showToast("Runs konnten nicht geladen werden: " + err.message, "error");
+      }
+    }
+
+    async function loadRunDetail(runId) {
+      try {
+        const data = await fetchJSON(`/runs/${runId}/logs?limit=400`);
+        state.selectedRun = data.run;
+        renderRuns(state.runs);
+        renderLogs(data.run, data.logs);
+      } catch (err) {
+        showToast("Logs konnten nicht geladen werden: " + err.message, "error");
+      }
+    }
+
+    elements.updateCronBtn.addEventListener("click", updateSchedule);
+    elements.runNowBtn.addEventListener("click", triggerRun);
+    elements.refreshBtn.addEventListener("click", () => { loadHealth(); loadRuns(); loadTasks(); });
+    elements.filterBtn.addEventListener("click", loadRuns);
+
+    elements.runsContainer.addEventListener("click", (ev) => {
+      const card = ev.target.closest(".run-card");
+      if (!card) return;
+      const id = Number(card.dataset.runId);
+      loadRunDetail(id);
+    });
+
+    async function bootstrap() {
+      await Promise.all([loadHealth(), loadSchedule(), loadRuns(), loadTasks()]);
+      renderLogs(null, null);
+      setInterval(() => { loadHealth(); loadRuns(); }, 20000);
+    }
+
+    bootstrap();
+  </script>
+</body>
+</html>
