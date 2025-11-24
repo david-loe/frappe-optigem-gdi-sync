@@ -3,3 +3,4 @@ requests
 fdb
 pyodbc
 pydantic
+pytest
