@@ -3,7 +3,7 @@ services:
     build: .
     volumes:
       - ./config.yaml:/config.yaml:ro
-      - ./timestamps.yaml:/timestamps.yaml
+      - ./timestamps.db:/timestamps.db
     # entrypoint: ["python", "./gen_hashes.py"] # for generating hashes
     command: --config /config.yaml # --loglevel debug
     environment:

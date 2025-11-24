@@ -4,3 +4,4 @@ fdb
 pyodbc
 pydantic
 pytest
+peewee

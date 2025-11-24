@@ -727,7 +727,7 @@
       "type": "boolean"
     },
     "timestamp_file": {
-      "default": "timestamps.yaml",
+      "default": "timestamps.db",
       "title": "Timestamp File",
       "type": "string"
     },

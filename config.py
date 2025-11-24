@@ -143,7 +143,7 @@ class Config(BaseModel):
     frappe: FrappeConfig
     tasks: dict[str, TaskConfig]
     dry_run: bool = False
-    timestamp_file: str = "timestamps.yaml"
+    timestamp_file: str = "timestamps.db"
     timestamp_buffer_seconds: int = 15
 
 

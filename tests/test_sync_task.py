@@ -1,10 +1,11 @@
+import logging
 from datetime import datetime, timedelta
 
 from config import DbToFrappeTaskConfig, TaskDbBase, TaskFrappeBase
+from sync.bidirectional import compare_datetimes
 from sync.manager import SyncManager, gen_task_hash
 from sync.task import SyncTaskBase
-from sync.bidirectional import compare_datetimes
-from utils.yaml_database import YamlDatabase
+from utils.history_db import SQLiteRunLogHandler, TaskHistoryDB, SyncState
 
 
 class DummyTask(SyncTaskBase[DbToFrappeTaskConfig]):
@@ -85,24 +86,22 @@ def test_value_mapping_reverse_db_to_frappe():
 
 def test_save_sync_date_replaces_entries_with_same_hash(tmp_path):
     config = make_config({"modified": "updated_at"})
-    timestamp_file = tmp_path / "timestamps.yaml"
+    timestamp_file = tmp_path / "timestamps.db"
     manager = SyncManager.__new__(SyncManager)
-    manager.config = type("Cfg", (), {"dry_run": False, "timestamp_file": "timestamps.yaml"})
-    manager.timestamp_db = YamlDatabase(str(timestamp_file))
+    manager.config = type("Cfg", (), {"dry_run": False, "timestamp_file": "timestamps.db"})
+    manager.history_db = TaskHistoryDB(str(timestamp_file))
 
     existing_hash = gen_task_hash(config)
-    manager.timestamp_db.insert(
-        "timestamps",
-        {
-            "old_task": {"hash": existing_hash, "last_sync_date_utc": "2020-01-01T00:00:00"},
-        },
-    )
+    manager.history_db.save_sync_date("old_task", existing_hash, datetime(2020, 1, 1))
 
     manager.save_sync_date("new_task", config, datetime(2024, 1, 1))
-    stored = manager.timestamp_db.get("timestamps")
+    rows = list(SyncState.select())
 
-    assert "old_task" not in stored
-    assert stored["new_task"]["hash"] == existing_hash
+    assert len(rows) == 1
+    assert rows[0].task_name == "new_task"
+    assert rows[0].task_hash == existing_hash
+    assert rows[0].last_sync_date_utc == datetime(2024, 1, 1)
+    manager.history_db.close()
 
 
 def test_timezone_harmonization_db_to_frappe():
@@ -147,3 +146,31 @@ def test_compare_datetimes_honors_tolerance():
 
     assert compare_datetimes(dt1, dt2, 100) == 0
     assert compare_datetimes(dt1, dt2, 10) == 1
+
+
+def test_sqlite_log_handler_writes_logs(tmp_path):
+    history = TaskHistoryDB(str(tmp_path / "timestamps.db"))
+    started_at = datetime(2024, 1, 1, 12, 0, 0)
+    run_id = history.start_run("task", "hash", None, started_at)
+    handler = SQLiteRunLogHandler(history, run_id)
+    handler.setFormatter(logging.Formatter("%(levelname)s:%(message)s"))
+
+    logger = logging.getLogger(f"test_logger_{run_id}")
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    logger.addHandler(handler)
+
+    logger.info("hello")
+    logger.warning("warn")
+
+    logger.removeHandler(handler)
+    handler.close()
+    history.finish_run(run_id, "success", datetime(2024, 1, 1, 12, 5, 0))
+
+    logs = history.get_logs(run_id)
+
+    assert logs[0]["message"].endswith("hello")
+    assert logs[0]["level"] == "INFO"
+    assert logs[1]["message"].endswith("warn")
+    assert logs[1]["level"] == "WARNING"
+    history.close()

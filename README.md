@@ -133,6 +133,8 @@ Zusätzlich gibt es in allen Aufgaben (TaskBase) folgende allgemeine Optionen:
 - **timestamp_file:** Pfad zur Datei, in der Zeitstempel der letzten Synchronisation gespeichert werden. (relativ zum Ordner der config Datei)
 - **timestamp_buffer_seconds:** Zeitpuffer in Sekunden, um zeitliche Ungenauigkeiten bei der Synchronisation zu kompensieren.
 
+Die Zeitstempel werden in einer SQLite-DB (`timestamps.db` per Default) abgelegt. Für jeden Task-Run wird dort zusätzlich ein Run-Eintrag mit den zugehörigen Log-Meldungen gespeichert.
+
 ## Setup Lokal
 
 ### 1. pyodbc MSSQL Treiber installieren
