@@ -73,10 +73,9 @@ Unter `databases` legen Sie eine oder mehrere Datenbankverbindungen fest. Jede D
 
 Die `frappe`-Sektion enthält alle notwendigen Informationen, um eine Verbindung zu einer Frappe-Instanz herzustellen:
 
-- **api_key:** API-Schlüssel für den Zugriff.
-- **api_secret:** API-Geheimnis.
-- **limit_page_length:** Maximale Anzahl an Einträgen pro Seite (Standard ist 20, im Beispiel z. B. auf 50 gesetzt).
-- **url:** Basis-URL der Frappe-Instanz (ohne abschließenden Schrägstrich).
+- **api_key / api_secret:** Zugriffsdaten für die Frappe-API (Pflicht).
+- **limit_page_length:** Maximale Anzahl an Einträgen pro Seite (Standard: 20).
+- **url:** Basis-URL der Frappe-Instanz (ohne abschließenden Schrägstrich, Pflicht).
 
 ### 3. Tasks
 
@@ -88,16 +87,19 @@ Die `tasks`-Sektion definiert die zu synchronisierenden Aufgaben. Jede Aufgabe w
 
   - **doc_type:** Der in Frappe verwendete Dokumenttyp.
   - **db_name:** Bezeichnung der verwendeten Datenbank (entspricht einem Schlüssel unter `databases`).
-  - **mapping:** Ein Dictionary, das die Zuordnung von Frappe-Feldern zu Datenbankfeldern definiert.
-  - **key_fields:** Liste der Felder, die als Schlüssel dienen und im Mapping vorhanden sein müssen.
+  - **mapping:** Dictionary, das Frappe-Felder zu DB-Spalten mappt (alle `key_fields` müssen hier enthalten sein).
+  - **key_fields:** Liste der Felder, die als Schlüssel dienen.
   - **table_name:** Name der Zieltabelle in der Datenbank.
   - **frappe:** Enthält Frappe-spezifische Einstellungen, zusätzlich:
     - **fk_id_field:** Fremdschlüssel-Feld zur eindeutigen Identifikation.
+    - **modified_fields:** Liste der Änderungs-Timestamps (Default: `["modified"]`); wird auch als `datetime_fields` hinterlegt.
+    - **datetime_fields / int_fields:** Felder, die beim Einlesen in Datums- bzw. Ganzzahlen gecastet werden sollen.
   - **db:** Enthält Datenbankspezifische Einstellungen, zusätzlich:
     - **fk_id_field:** Fremdschlüssel-Feld.
     - **id_field:** Identifikationsfeld in der Datenbank.
-    - **manual_id_sequence:** Manuelles hochzählen von dem Datenbank Index (Standard: false)
-    - **manual_id_sequence_max** Maximaler Wert für den manuellen Index
+    - **manual_id_sequence:** Manuelles Hochzählen des Primärschlüssels (Standard: false).
+    - **manual_id_sequence_max:** Optionaler Maximalwert für die manuelle Sequenz.
+    - **modified_fields:** Liste der Änderungs-Timestamps (Pflicht).
   - **delete:** Gibt an, ob Datensätze gelöscht werden sollen (Standard: true).
   - **datetime_comparison_accuracy_milliseconds:** Genauigkeit beim Vergleich von Datums-/Zeitfeldern in Millisekunden.
 
@@ -106,21 +108,24 @@ Die `tasks`-Sektion definiert die zu synchronisierenden Aufgaben. Jede Aufgabe w
   **Wichtige Felder:**
 
   - **doc_type, db_name, mapping und key_fields:** Wie oben.
-  - Es muss **entweder** `table_name` **oder** `query` angegeben werden. Im Beispiel wird `table_name` genutzt.
-  - **frappe** und **db:** Konfigurationen zur Nutzung des letzten Synchronisationsdatums (wichtig, wenn `use_last_sync_date` aktiviert ist).
+  - Es muss **entweder** `table_name` **oder** `query` angegeben werden. Wird `query` genutzt und `use_last_sync_date` ist aktiv, muss zusätzlich `query_with_timestamp` vorhanden sein.
+  - **frappe** und **db:** Pflicht, wenn `use_last_sync_date` aktiv ist (Default: true).
   - **process_all:** Boolean, ob alle Datensätze verarbeitet werden sollen (Standard: true).
 
 - **Frappe zu DB Synchronisation (`direction: frappe_to_db`):**  
   Exportiert Daten von Frappe in die Datenbank.  
   **Wichtige Felder:**
   - **doc_type, db_name, mapping und key_fields:** Wie oben.
-  - **table_name:** Gibt an, in welche Tabelle die Daten in der Datenbank geschrieben werden sollen.
+  - **table_name:** Gibt an, in welche Tabelle die Daten in der Datenbank geschrieben werden sollen (Pflicht).
+  - **db:** Enthält u. a. `id_field`, `manual_id_sequence` (Standard: false) und optional `manual_id_sequence_max`.
 
 Zusätzlich gibt es in allen Aufgaben (TaskBase) folgende allgemeine Optionen:
 
-- **create_new:** Legt fest, ob neue Datensätze angelegt werden sollen (Standard: true).
-- **use_last_sync_date:** Gibt an, ob das letzte Synchronisationsdatum zur Filterung von Änderungen verwendet wird (Standard: true).
-- **query_with_timestamp:** Muss angegeben werden, wenn eine eigene Query verwendet wird und `use_last_sync_date` aktiviert ist.
+- **create_new:** Legt fest, ob neue Datensätze angelegt werden (Standard: true).
+- **use_last_sync_date:** Filtert nur geänderte Datensätze anhand der `modified_fields` (Standard: true). Dann sind `frappe` und `db` Pflicht.
+- **value_mapping:** Optionales Mapping pro Frappe-Feld, um Werte zwischen Frappe und DB zu übersetzen.
+- **use_strict_value_mapping:** Wenn true, werden unbekannte Werte im Mapping verworfen und es wird ein Warning geloggt.
+- **query_with_timestamp:** Muss vorhanden sein, wenn `query` genutzt wird und `use_last_sync_date` aktiv ist.
 
 ### 4. Allgemeine Konfiguration
 
