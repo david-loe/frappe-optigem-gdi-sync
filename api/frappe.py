@@ -41,9 +41,9 @@ class FrappeAPI:
             headers = self.headers.copy()
             headers["Content-Type"] = "application/json"
             if method == "POST":
-                response = requests.post(endpoint, data=json_data, headers=self.headers)
+                response = requests.post(endpoint, data=json_data, headers=headers)
             elif method == "PUT":
-                response = requests.put(endpoint, data=json_data, headers=self.headers)
+                response = requests.put(endpoint, data=json_data, headers=headers)
             else:
                 logging.error(f"Unbekannte HTTP-Methode: {method}")
                 return None

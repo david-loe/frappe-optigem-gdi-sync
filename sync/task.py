@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import logging
-from typing import TypeVar, Generic
+from typing import Generic, Literal, TypeVar
+
 from api.database import DatabaseConnection, format_query, get_time_zone
 from api.frappe import FrappeAPI
 from config import TaskConfig
@@ -20,8 +21,8 @@ class SyncTaskBase(Generic[T], ABC):
         self.dry_run = dry_run
         self.db_conn = db_conn.get_connection(self.config.db_name)
         self.esc_db_col = db_conn.get_escape_identifier_fn(self.config.db_name)
-        self.frappe_tz_delta = frappe_api.tz_delta
-        self.db_tz_delta = get_time_zone(self.db_conn)
+        self.frappe_tz_delta = frappe_api.tz_delta or timedelta()
+        self.db_tz_delta = get_time_zone(self.db_conn) or timedelta()
 
     @abstractmethod
     def sync(self, last_sync_date_utc: datetime | None = None):
@@ -44,7 +45,8 @@ class SyncTaskBase(Generic[T], ABC):
         finally:
             cursor.close()
 
-    def _execute_select_query(self, sql: str, params: list = []):
+    def _execute_select_query(self, sql: str, params: list | None = None):
+        params = params or []
         db_records: list[dict[str, any]] = []
         logging.debug(f"""Anfrage an {self.config.db_name}\n{format_query(sql, params)}""")
         cursor = self.db_conn.cursor()
@@ -62,47 +64,70 @@ class SyncTaskBase(Generic[T], ABC):
         logging.debug(f"Insgesamt {len(db_records)} Datensätze gefunden.")
         return db_records
 
+    def _should_adjust_timezone(self, frappe_field: str, db_field: str) -> bool:
+        if not self.config.frappe or not self.config.db:
+            return False
+        return frappe_field in self.config.frappe.modified_fields and db_field in self.config.db.modified_fields
+
+    def _adjust_timezone(
+        self, value: any, *, frappe_field: str, db_field: str, direction: Literal["frappe_to_db", "db_to_frappe"]
+    ):
+        if not isinstance(value, datetime):
+            return value
+        if not self._should_adjust_timezone(frappe_field, db_field):
+            return value
+        if direction == "frappe_to_db":
+            return value - self.frappe_tz_delta + self.db_tz_delta
+        return value - self.db_tz_delta + self.frappe_tz_delta
+
+    def _apply_value_mapping(
+        self, value: any, frappe_field: str, *, direction: Literal["frappe_to_db", "db_to_frappe"], warns: bool
+    ) -> tuple[any, bool]:
+        mapping = self.config.value_mapping.get(frappe_field)
+        if not mapping:
+            return value, True
+
+        # use value_mapping
+        if direction == "frappe_to_db":
+            if value in mapping:
+                return mapping[value], True
+            if self.config.use_strict_value_mapping and warns:
+                logging.warning(
+                    f"Kein Wert in value_mapping gefunden für frappe-Feld '{frappe_field}' und Wert '{value}'."
+                )
+            return value, not self.config.use_strict_value_mapping
+
+        for f_value, db_value in mapping.items():
+            if db_value == value:
+                return f_value, True
+        if self.config.use_strict_value_mapping and warns:
+            logging.warning(
+                f"Kein Wert in value_mapping gefunden für DB-Feld "
+                f"'{self.config.mapping.get(frappe_field, 'unbekannt')}' und Wert '{value}'."
+            )
+        return value, not self.config.use_strict_value_mapping
+
     def map_frappe_to_db(self, record: dict, warns=True) -> dict:
         """
         Übersetzt einen Frappe-Datensatz in ein DB-Datenformat anhand des Mapping.
         """
         db_data = {}
         for frappe_field, db_column in self.config.mapping.items():
-            if frappe_field in record:
-                value = record[frappe_field]
-                if value is not None:
-                    # harmonize time zones
-                    if (
-                        (
-                            self.config.frappe
-                            and self.config.frappe.modified_fields
-                            and frappe_field in self.config.frappe.modified_fields
-                        )
-                        and (
-                            self.config.db
-                            and self.config.db.modified_fields
-                            and db_column in self.config.db.modified_fields
-                        )
-                        and isinstance(value, datetime)
-                    ):
-                        value = value - self.frappe_tz_delta + self.db_tz_delta
+            if frappe_field not in record:
+                if warns:
+                    logging.warning(f"Feld '{frappe_field}' fehlt im Frappe-Datensatz {record}.")
+                continue
 
-                    # use value_mapping
-                    if frappe_field in self.config.value_mapping:
-                        found = False
-                        for f_v, db_v in self.config.value_mapping[frappe_field].items():
-                            if f_v == value:
-                                value = db_v
-                                found = True
-                                break
-                        if not found and self.config.use_strict_value_mapping:
-                            logging.warning(
-                                f"Kein Wert in value_mapping gefunden für frappe-Feld '{frappe_field}' und Wert '{value}'."
-                            )
-                            continue  # skip value
-                    db_data[db_column] = value
-            elif warns:
-                logging.warning(f"Feld '{frappe_field}' fehlt im Frappe-Datensatz {record}.")
+            value = record[frappe_field]
+            if value is None:
+                continue
+
+            value = self._adjust_timezone(
+                value, frappe_field=frappe_field, db_field=db_column, direction="frappe_to_db"
+            )
+            value, valid = self._apply_value_mapping(value, frappe_field, direction="frappe_to_db", warns=warns)
+            if valid:
+                db_data[db_column] = value
         return db_data
 
     def map_db_to_frappe(self, record: dict, warns=True) -> dict:
@@ -111,42 +136,21 @@ class SyncTaskBase(Generic[T], ABC):
         """
         frappe_data = {}
         for frappe_field, db_column in self.config.mapping.items():
-            if db_column in record:
-                value = record[db_column]
-                if value is not None:
-                    # harmonize time zones
-                    if (
-                        (
-                            self.config.frappe
-                            and self.config.frappe.modified_fields
-                            and frappe_field in self.config.frappe.modified_fields
-                        )
-                        and (
-                            self.config.db
-                            and self.config.db.modified_fields
-                            and db_column in self.config.db.modified_fields
-                        )
-                        and isinstance(value, datetime)
-                    ):
-                        value = value - self.db_tz_delta + self.frappe_tz_delta
+            if db_column not in record:
+                if warns:
+                    logging.warning(f"Spalte '{db_column}' fehlt im DB-Datensatz {record}.")
+                continue
 
-                    # use value_mapping
-                    if frappe_field in self.config.value_mapping:
-                        found = False
-                        for f_v, db_v in self.config.value_mapping[frappe_field].items():
-                            if db_v == value:
-                                value = f_v
-                                found = True
-                                break
-                        if not found and self.config.use_strict_value_mapping:
-                            logging.warning(
-                                f"Kein Wert in value_mapping gefunden für DB-Feld '{db_column}' und Wert '{value}'."
-                            )
-                            continue  # skip value
+            value = record[db_column]
+            if value is None:
+                continue
 
-                    frappe_data[frappe_field] = value
-            elif warns:
-                logging.warning(f"Spalte '{db_column}' fehlt im DB-Datensatz {record}.")
+            value = self._adjust_timezone(
+                value, frappe_field=frappe_field, db_field=db_column, direction="db_to_frappe"
+            )
+            value, valid = self._apply_value_mapping(value, frappe_field, direction="db_to_frappe", warns=warns)
+            if valid:
+                frappe_data[frappe_field] = value
         return frappe_data
 
     def split_frappe_in_data_and_keys(self, frappe_rec: dict):
@@ -160,6 +164,8 @@ class SyncTaskBase(Generic[T], ABC):
         return data, keys
 
     def _cast_frappe_record(self, record: dict):
+        if not self.config.frappe:
+            return record
         for field in self.config.frappe.datetime_fields:
             if field in record and isinstance(record[field], str):
                 if not record[field]:
@@ -188,6 +194,8 @@ class SyncTaskBase(Generic[T], ABC):
         """
         filters = []
         if last_sync_date_utc:
+            if not self.config.frappe:
+                raise ValueError("Frappe-Konfiguration fehlt, um Datensätze anhand des Änderungsdatums zu filtern.")
             last_sync_date = last_sync_date_utc + self.frappe_tz_delta
             for modified_field in self.config.frappe.modified_fields:
                 filters.append(f'["{modified_field}", ">=", "{last_sync_date.isoformat()}"]')
@@ -219,6 +227,8 @@ class SyncTaskBase(Generic[T], ABC):
         select_sql = f"SELECT * FROM {self.config.table_name}"
         params = []
         if last_sync_date_utc:
+            if not self.config.db:
+                raise ValueError("DB-Konfiguration fehlt, um Datensätze anhand des Änderungsdatums zu filtern.")
             last_sync_date = last_sync_date_utc + self.db_tz_delta
             is_first_condition = True
             for modified_field in self.config.db.modified_fields:
@@ -344,7 +354,10 @@ class SyncTaskBase(Generic[T], ABC):
                     logging.debug(f"Anfrage an {self.config.db_name}\n{format_query(sql_next, [])}")
                     cursor.execute(sql_next)
                     next_nr = cursor.fetchone()[0]
-                    if next_nr >= self.config.db.manual_id_sequence_max:
+                    if (
+                        self.config.db.manual_id_sequence_max is not None
+                        and next_nr >= self.config.db.manual_id_sequence_max
+                    ):
                         raise Exception(
                             f"Manuelle errechnete nächste ID ({next_nr}) übersteigt manual_id_sequence_max ({self.config.db.manual_id_sequence_max})"
                         )

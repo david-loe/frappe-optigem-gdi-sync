@@ -71,14 +71,14 @@ class SyncManager:
     def save_sync_date(self, task_name: str, task_config: TaskConfig, date: datetime):
         if self.config.dry_run:
             return
-        new_entry = {"hash": gen_task_hash(task_config), "last_sync_date_utc": date.isoformat()}
+        new_hash = gen_task_hash(task_config)
+        new_entry = {"hash": new_hash, "last_sync_date_utc": date.isoformat()}
         entries = self.timestamp_db.get("timestamps")
         if not entries:
             entries = {}
 
-        for _task_name, entry in entries.items():
-            if entry["hash"] == hash:
-                entries.pop(_task_name)
+        # ältere Einträge mit identischem Hash entfernen, bevor der neue Zustand geschrieben wird
+        entries = {name: entry for name, entry in entries.items() if entry.get("hash") != new_hash}
 
         entries[task_name] = new_entry
         self.timestamp_db.insert("timestamps", entries)
