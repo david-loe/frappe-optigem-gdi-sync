@@ -56,6 +56,10 @@ API-Endpunkte (Port 8000, JSON):
 - `GET /runs?limit=50&task_name=...` – letzte Runs
 - `GET /runs/{run_id}/logs?limit=200` – Logs zu einem Run
 
+### Einfaches Web-UI
+
+Der Web Service liefert unter `/` ein leichtgewichtiges Dashboard für die oben genannten Endpunkte. Service starten und dann im Browser `http://localhost:8000/` aufrufen, um den Cron zu pflegen, einen Run anzustoßen und Logs anzusehen.
+
 Der Plan wird in der `timestamps.db` gespeichert. Ohne gesetzten Cron (z. B. per `CRON` oder `PUT /schedule`) wird nichts automatisch ausgeführt.
 
 ## Config anpassen

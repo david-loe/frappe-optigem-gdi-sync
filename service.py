@@ -2,11 +2,14 @@ import argparse
 import logging
 import os
 import threading
+from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 from croniter import croniter
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import uvicorn
 
@@ -29,8 +32,7 @@ class SyncService:
         self._wake_event = threading.Event()
         self._scheduler_thread: threading.Thread | None = None
 
-        self.config = load_config_file(self.config_path, self.dry_run)
-        self.history_db_path = resolve_timestamp_path(self.config_path, self.config.timestamp_file)
+        self._reload_config()
 
         self.cron_expr: str | None = None
         self._load_schedule_from_db()
@@ -44,6 +46,10 @@ class SyncService:
         with TaskHistoryDB(self.history_db_path) as history_db:
             schedule = history_db.get_schedule()
         self._apply_schedule(schedule)
+
+    def _reload_config(self):
+        self.config = load_config_file(self.config_path, self.dry_run)
+        self.history_db_path = resolve_timestamp_path(self.config_path, self.config.timestamp_file)
 
     def _apply_schedule(self, schedule: dict):
         expr = (schedule.get("cron") or "").strip()
@@ -118,20 +124,20 @@ class SyncService:
             if not self.trigger_sync(reason="cron"):
                 logging.info("Überspringe geplanten Lauf, da bereits ein Sync läuft.")
 
-    def trigger_sync(self, reason: str = "manual") -> bool:
+    def trigger_sync(self, reason: str = "manual", task_names: list[str] | None = None) -> bool:
         if not self._run_lock.acquire(blocking=False):
             return False
 
-        threading.Thread(target=self._run_sync, args=(reason,), daemon=True).start()
+        threading.Thread(target=self._run_sync, args=(reason, task_names), daemon=True).start()
         return True
 
-    def _run_sync(self, reason: str):
+    def _run_sync(self, reason: str, task_names: list[str] | None = None):
         try:
-            logging.info("Starte Sync (%s)", reason)
-            self.config = load_config_file(self.config_path, self.dry_run)
-            self.history_db_path = resolve_timestamp_path(self.config_path, self.config.timestamp_file)
+            selection = f" (Tasks: {', '.join(task_names)})" if task_names else ""
+            logging.info("Starte Sync (%s)%s", reason, selection)
+            self._reload_config()
             manager = SyncManager(self.config, self.config_path)
-            manager.run()
+            manager.run(task_names=task_names)
             # Plan evtl. neu laden (falls z. B. DB erneuert wurde)
             self._load_schedule_from_db()
         except Exception:
@@ -143,22 +149,58 @@ class SyncService:
     def is_running(self) -> bool:
         return self._run_lock.locked()
 
+    def list_config_tasks(self) -> list[dict[str, str]]:
+        self._reload_config()
+        return [{"name": name, "direction": task.direction} for name, task in self.config.tasks.items()]
+
+    def normalize_task_names(self, task_names: list[str] | None) -> list[str] | None:
+        self._reload_config()
+        if task_names is None:
+            return None
+        cleaned = [name.strip() for name in task_names if name and name.strip()]
+        if not cleaned:
+            raise ValueError("Es wurde kein Task-Name angegeben.")
+
+        available = set(self.config.tasks.keys())
+        unknown = [name for name in cleaned if name not in available]
+        if unknown:
+            raise ValueError(f"Unbekannte Tasks: {', '.join(sorted(unknown))}")
+
+        seen = set()
+        unique_tasks = []
+        for name in cleaned:
+            if name not in seen:
+                unique_tasks.append(name)
+                seen.add(name)
+        return unique_tasks
+
 
 class ScheduleRequest(BaseModel):
     cron: Optional[str] = None
 
 
+class RunRequest(BaseModel):
+    tasks: Optional[list[str]] = None
+
+
 def create_app(service: SyncService) -> FastAPI:
-    app = FastAPI(title="Frappe ↔ Optigem Sync Service", version="0.1.0")
-    app.state.service = service
-
-    @app.on_event("startup")
-    def _start_scheduler():
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
         service.start()
+        try:
+            yield
+        finally:
+            service.stop()
 
-    @app.on_event("shutdown")
-    def _stop_scheduler():
-        service.stop()
+    app = FastAPI(title="Frappe ↔ Optigem Sync Service", version="0.1.0", lifespan=lifespan)
+    app.state.service = service
+    frontend_index = Path(__file__).parent / "frontend" / "index.html"
+
+    @app.get("/", include_in_schema=False)
+    async def serve_frontend():
+        if not frontend_index.exists():
+            raise HTTPException(status_code=404, detail="Frontend nicht gefunden")
+        return FileResponse(frontend_index)
 
     @app.get("/health")
     async def health():
@@ -174,6 +216,10 @@ def create_app(service: SyncService) -> FastAPI:
             "cron": service.cron_expr,
         }
 
+    @app.get("/tasks")
+    async def list_tasks():
+        return {"tasks": service.list_config_tasks()}
+
     @app.put("/schedule")
     async def update_schedule(body: ScheduleRequest):
         if body.cron is None:
@@ -188,10 +234,17 @@ def create_app(service: SyncService) -> FastAPI:
         }
 
     @app.post("/run")
-    async def run_now():
-        if not service.trigger_sync(reason="manual"):
+    async def run_now(body: RunRequest | None = None):
+        task_names = body.tasks if body else None
+        try:
+            normalized = service.normalize_task_names(task_names)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+        if not service.trigger_sync(reason="manual", task_names=normalized):
             raise HTTPException(status_code=409, detail="Sync läuft bereits")
-        return {"status": "started"}
+        task_list = normalized or list(service.config.tasks.keys())
+        return {"status": "started", "tasks": task_list}
 
     @app.get("/runs")
     async def list_runs(limit: int = 50, task_name: Optional[str] = None):

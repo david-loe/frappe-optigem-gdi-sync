@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from peewee import (
@@ -184,7 +184,7 @@ class SQLiteRunLogHandler(logging.Handler):
             message = self.format(record)
         except Exception:
             message = record.getMessage()
-        created_at = datetime.utcfromtimestamp(record.created)
+        created_at = datetime.fromtimestamp(record.created, tz=timezone.utc).replace(tzinfo=None)
         try:
             self.history_db.insert_log(self.run_id, record.levelname, message, created_at)
         except Exception:

@@ -46,9 +46,23 @@ class SyncManager:
         elif task_config.direction == "bidirectional":
             return BidirectionalSyncTask(task_name, task_config, self.db_conn, self.frappe_api, self.config.dry_run)
 
-    def run(self):
+    def run(self, task_names: list[str] | None = None):
+        tasks_to_run = self.tasks
+        if task_names is not None:
+            requested = set(task_names)
+            tasks_to_run = [task for task in self.tasks if task.name in requested]
+            missing = [name for name in task_names if name not in {task.name for task in tasks_to_run}]
+            if missing:
+                logging.warning("Tasks nicht gefunden und werden übersprungen: %s", ", ".join(missing))
+
+        if not tasks_to_run:
+            logging.info("Keine Tasks im Filter gefunden, Sync wird übersprungen.")
+            return
+
+        logging.info("Führe %s Task(s) aus: %s", len(tasks_to_run), ", ".join(task.name for task in tasks_to_run))
+
         try:
-            for task in self.tasks:
+            for task in tasks_to_run:
                 last_sync_date_utc = self.get_last_sync_date(task.config)
                 started_at = datetime.now(timezone.utc).replace(tzinfo=None)
                 run_id = self.history_db.start_run(
