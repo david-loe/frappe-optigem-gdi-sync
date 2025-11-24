@@ -73,8 +73,16 @@ class SyncTaskBase(Generic[T], ABC):
                 if value is not None:
                     # harmonize time zones
                     if (
-                        frappe_field in self.config.frappe.modified_fields
-                        and db_column in self.config.db.modified_fields
+                        (
+                            self.config.frappe
+                            and self.config.frappe.modified_fields
+                            and frappe_field in self.config.frappe.modified_fields
+                        )
+                        and (
+                            self.config.db
+                            and self.config.db.modified_fields
+                            and db_column in self.config.db.modified_fields
+                        )
                         and isinstance(value, datetime)
                     ):
                         value = value - self.frappe_tz_delta + self.db_tz_delta
@@ -108,8 +116,16 @@ class SyncTaskBase(Generic[T], ABC):
                 if value is not None:
                     # harmonize time zones
                     if (
-                        frappe_field in self.config.frappe.modified_fields
-                        and db_column in self.config.db.modified_fields
+                        (
+                            self.config.frappe
+                            and self.config.frappe.modified_fields
+                            and frappe_field in self.config.frappe.modified_fields
+                        )
+                        and (
+                            self.config.db
+                            and self.config.db.modified_fields
+                            and db_column in self.config.db.modified_fields
+                        )
                         and isinstance(value, datetime)
                     ):
                         value = value - self.db_tz_delta + self.frappe_tz_delta
