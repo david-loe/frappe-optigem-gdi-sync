@@ -201,3 +201,21 @@ def test_list_runs_orders_by_started_at_desc(tmp_path):
     assert runs[0]["status"] == "error"
     assert runs[1]["id"] == first
     history.close()
+
+
+def test_prune_runs_limits_entries_per_status(tmp_path):
+    history = TaskHistoryDB(str(tmp_path / "data.db"))
+    base_time = datetime(2024, 1, 1, 12, 0, 0)
+    run_ids = []
+    for offset in range(3):
+        run_id = history.start_run("task", "hash", None, base_time + timedelta(minutes=offset))
+        history.finish_run(run_id, "success", base_time + timedelta(minutes=offset, seconds=30))
+        run_ids.append(run_id)
+
+    history.prune_runs("task", "success", 2)
+
+    runs = history.list_runs(limit=10, task_name="task")
+    remaining_success_ids = [run["id"] for run in runs if run["status"] == "success"]
+    assert len(remaining_success_ids) == 2
+    assert set(remaining_success_ids) == set(run_ids[-2:])
+    history.close()

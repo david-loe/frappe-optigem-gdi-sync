@@ -157,6 +157,21 @@ class TaskHistoryDB:
             "status": row.status,
         }
 
+    def prune_runs(self, task_name: str, status: str, keep_last: int | None):
+        """
+        Remove old TaskRun entries so that at most `keep_last` remain for the given task/status.
+        """
+        if keep_last is None:
+            return
+
+        ids_to_delete = (
+            TaskRun.select(TaskRun.id)
+            .where(TaskRun.task_name == task_name, TaskRun.status == status)
+            .order_by(TaskRun.started_at.desc(), TaskRun.id.desc())
+            .offset(keep_last)
+        )
+        TaskRun.delete().where(TaskRun.id.in_(ids_to_delete)).execute()
+
     # Convenience for tests / inspection
     def get_logs(self, run_id: int):
         return self.get_run_logs(run_id)

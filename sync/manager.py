@@ -71,6 +71,7 @@ class SyncManager:
                 handler = SQLiteRunLogHandler(self.history_db, run_id)
                 root_logger = logging.getLogger()
                 root_logger.addHandler(handler)
+                run_status: str | None = None
                 try:
                     log = f"Starte Sync Task '{task.name}'"
                     if last_sync_date_utc:
@@ -83,10 +84,14 @@ class SyncManager:
                     )
                     self.save_sync_date(task.name, task.config, sync_date)
                     self.history_db.finish_run(run_id, "success", datetime.now(timezone.utc).replace(tzinfo=None))
+                    run_status = "success"
                 except Exception:
                     self.history_db.finish_run(run_id, "error", datetime.now(timezone.utc).replace(tzinfo=None))
+                    run_status = "error"
                     raise
                 finally:
+                    if run_status:
+                        self._prune_task_runs(task.name, run_status)
                     root_logger.removeHandler(handler)
                     handler.close()
         finally:
@@ -105,6 +110,16 @@ class SyncManager:
             return
         task_hash = gen_task_hash(task_config)
         self.history_db.save_sync_date(task_name, task_hash, date)
+
+    def _prune_task_runs(self, task_name: str, status: str):
+        if status not in {"success", "error"}:
+            return
+        keep_last = (
+            self.config.max_success_runs_per_task
+            if status == "success"
+            else self.config.max_error_runs_per_task
+        )
+        self.history_db.prune_runs(task_name, status, keep_last)
 
 
 def gen_task_hash(task_config: TaskConfig):

@@ -145,6 +145,8 @@ class Config(BaseModel):
     dry_run: bool = False
     timestamp_file: str = "data.db"
     timestamp_buffer_seconds: int = 15
+    max_success_runs_per_task: Optional[int] = Field(default=None, ge=0)
+    max_error_runs_per_task: Optional[int] = Field(default=None, ge=0)
 
 
 import json

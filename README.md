@@ -155,6 +155,7 @@ Zusätzlich gibt es in allen Aufgaben (TaskBase) folgende allgemeine Optionen:
 - **dry_run:** Wenn auf `true` gesetzt, werden keine Änderungen an den Systemen vorgenommen – die Ausführung erfolgt als Simulation.
 - **timestamp_file:** Pfad zur Datei, in der Zeitstempel der letzten Synchronisation gespeichert werden. (relativ zum Ordner der config Datei)
 - **timestamp_buffer_seconds:** Zeitpuffer in Sekunden, um zeitliche Ungenauigkeiten bei der Synchronisation zu kompensieren.
+- **max_success_runs_per_task / max_error_runs_per_task:** Maximale Anzahl gespeicherter erfolgreicher bzw. fehlerhafter Runs pro Task. Wenn nicht gesetzt, werden alle Runs behalten.
 
 Die Zeitstempel werden in einer SQLite-DB (`data.db` per Default) abgelegt. Für jeden Task-Run wird dort zusätzlich ein Run-Eintrag mit den zugehörigen Log-Meldungen gespeichert.
 
