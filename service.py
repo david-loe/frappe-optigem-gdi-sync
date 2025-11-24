@@ -278,21 +278,10 @@ def create_app(service: SyncService) -> FastAPI:
     return app
 
 
-def build_service_from_env() -> SyncService:
-    config_path = os.getenv("SYNC_CONFIG_PATH", "config.yaml")
-    dry_run = os.getenv("SYNC_DRY_RUN", "false").lower() in {"1", "true", "yes"}
-    cron_env = os.getenv("CRON")
-    return SyncService(config_path, dry_run=dry_run, initial_cron=cron_env)
-
-
-service = build_service_from_env()
-app = create_app(service)
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Starte den Sync Web Service")
-    parser.add_argument("--config", default=os.getenv("SYNC_CONFIG_PATH", "config.yaml"))
-    parser.add_argument("--loglevel", default=os.getenv("SYNC_LOGLEVEL", "INFO"))
+    parser.add_argument("--config", default="config.yaml")
+    parser.add_argument("--loglevel", default="INFO")
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--dry-run", action="store_true")
