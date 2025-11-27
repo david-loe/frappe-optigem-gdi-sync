@@ -111,7 +111,7 @@ class BidirectionalSyncTask(SyncTaskBase[BidirectionalTaskConfig]):
 
     def update_frappe_foreign_id(self, frappe_rec: dict, foreign_id: str):
         data = {}
-        data[self.config.frappe.id_field] = foreign_id
+        data[self.config.frappe.fk_id_field] = foreign_id
         res = self.frappe_api.update_data(self.config.doc_type, frappe_rec.get(self.config.frappe.id_field), data)
         if res:
             return res.get("data")
